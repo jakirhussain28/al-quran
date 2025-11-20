@@ -4,8 +4,7 @@ import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
 
-const API_URL = "http://localhost:8000/api";
-
+const API_URL = import.meta.env.BACKEND_API_URL || 'http://localhost:8000/api';
 function App() {
   // --- DATA STATES ---
   const [chapters, setChapters] = useState([]);

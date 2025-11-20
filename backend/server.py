@@ -9,11 +9,16 @@ import uvicorn
 load_dotenv()
 
 app = FastAPI()
-
+origins = [
+    "https://alquran-furqan.vercel.app/",
+    "https://alquran-foundation.vercel.app/",
+    "https://quran-furqan.vercel.app/",
+    "http://localhost:5000"
+]
 # Configure CORS for your React frontend (Vite default: 5173)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
