@@ -2,7 +2,8 @@ function ChapterHeader({ chapter }) {
   if (!chapter) return null;
 
   return (
-    <div className="shrink-0 z-10 w-full bg-[rgb(22,22,24)] border-b border-gray-800 shadow-sm">
+    // Added lg:hidden to hide this secondary header on desktop
+    <div className="lg:hidden shrink-0 z-10 w-full bg-[rgb(22,22,24)] border-b border-gray-800 shadow-sm">
       <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
         
         {/* Left Side: Names */}

@@ -41,7 +41,7 @@ function VerseList({
             </div>
 
             {/* --- PAGINATION CONTROLS --- */}
-            <div className="flex items-center justify-between bg-[rgb(37,38,40)] p-4 rounded-xl border border-gray-800">
+            <div className="flex items-center justify-between bg-[rgb(37,38,40)] p-2 rounded-xl border border-gray-800">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
