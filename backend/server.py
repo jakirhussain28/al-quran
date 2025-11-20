@@ -77,4 +77,4 @@ async def get_verses(chapter_id: int, page: int = 1):
     return await make_request(f"/verses/by_chapter/{chapter_id}", params)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)

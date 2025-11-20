@@ -13,7 +13,7 @@ function VerseList({
       ref={scrollRef}
       className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth custom-scrollbar"
     >
-      <div className="max-w-4xl mx-auto pb-10">
+      <div className="max-w-6xl mx-auto pb-10">
         {loading ? (
            <div className="flex justify-center py-20">
              <Loader2 className="animate-spin h-10 w-10 text-emerald-500"/>

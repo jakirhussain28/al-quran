@@ -28,7 +28,6 @@ function App() {
       .then(res => res.json())
       .then(data => {
         setChapters(data.chapters || []);
-        setLoadingChapters(false);
       })
       .catch(err => console.error("Failed to load chapters", err));
   }, []);
@@ -63,11 +62,9 @@ function App() {
   }, [selectedChapter, page]);
 
   // --- HANDLERS ---
-
   const handleChapterSelect = (chapter) => {
     setSelectedChapter(chapter);
     setPage(1);
-    // Dropdown closing logic is now handled inside DynamicBar
   };
 
   return (
@@ -85,8 +82,8 @@ function App() {
         </div>
 
         {/* CENTER: DYNAMIC BAR CONTAINER */}
-        {/* The absolute positioning remains here to center the component in the header */}
-        <div className="absolute top-0 h-16 flex items-center justify-center left-0 right-0 z-30 pointer-events-none">
+        {/* FIX: items-start + pt-3 ensures it grows DOWN, not from center */}
+        <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pointer-events-none pt-2.5">
           <DynamicBar 
             chapters={chapters}
             selectedChapter={selectedChapter}
@@ -109,7 +106,7 @@ function App() {
             <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center animate-pulse">
                <img src={logoquran} className="w-8 h-8 opacity-50" />
             </div>
-            <p className="text-lg font-mono">Select a Surah from the bar above</p>
+            <p className="text-lg font-mono">Bismillah</p>
           </div>
         ) : (
           <VerseList
