@@ -4,10 +4,7 @@ import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
 
-// LOGIC: If Prod (Vercel), use relative path so it goes through vercel.json rewrites.
-// If Dev, assume Python is on port 8000 or standard Vercel dev port.
-const isProduction = import.meta.env.BACKEND_API_URL;
-const API_URL = isProduction ? '' : 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function App() {
   // --- DATA STATES ---

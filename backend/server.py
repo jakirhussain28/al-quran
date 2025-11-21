@@ -15,8 +15,7 @@ origins = [
     "https://alquran-furqan.vercel.app",
     "https://alquran-foundation.vercel.app",
     "https://quran-furqan.vercel.app",
-    "http://localhost:5000", # Vercel Local
-    "*" # Temporary wildcard to ensure it works during dev
+    "http://localhost:5000"
 ]
 
 app.add_middleware(
@@ -27,7 +26,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auth Configuration
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
