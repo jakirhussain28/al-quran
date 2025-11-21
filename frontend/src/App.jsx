@@ -4,7 +4,7 @@ import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
 
-const API_URL = import.meta.env.BACKEND_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.BACKEND_API_URL || 'http://localhost:3000';
 function App() {
   // --- DATA STATES ---
   const [chapters, setChapters] = useState([]);
@@ -23,7 +23,7 @@ function App() {
 
   // --- FETCH CHAPTERS ---
   useEffect(() => {
-    fetch(`${API_URL}/chapters`)
+    fetch(`${API_URL}/api/chapters`)
       .then(res => res.json())
       .then(data => {
         setChapters(data.chapters || []);
@@ -47,7 +47,7 @@ function App() {
     }
 
     setLoadingVerses(true);
-    fetch(`${API_URL}/chapters/${chapterId}/verses?page=${page}`)
+    fetch(`${API_URL}/api/chapters/${chapterId}/verses?page=${page}`)
       .then(res => res.json())
       .then(data => {
         const fetchedVerses = data.verses || [];

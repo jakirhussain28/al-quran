@@ -9,13 +9,17 @@ import uvicorn
 load_dotenv()
 
 app = FastAPI()
+
+@app.get("/")   #check
+async def health_check():
+    return "Health check is successfull"
+
 origins = [
-    "https://alquran-furqan.vercel.app/",
-    "https://alquran-foundation.vercel.app/",
-    "https://quran-furqan.vercel.app/",
+    "https://alquran-furqan.vercel.app",
+    "https://alquran-foundation.vercel.app",
+    "https://quran-furqan.vercel.app",
     "http://localhost:5000"
 ]
-# Configure CORS for your React frontend (Vite default: 5173)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -81,5 +85,5 @@ async def get_verses(chapter_id: int, page: int = 1):
     }
     return await make_request(f"/verses/by_chapter/{chapter_id}", params)
 
-if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+# if __name__ == "__main__":
+#     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
