@@ -3,6 +3,7 @@ import { Settings } from 'lucide-react';
 import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
+import SettingsModal from './Components/SettingsModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -17,6 +18,12 @@ function App() {
   // --- UI STATES ---
   const [loadingChapters, setLoadingChapters] = useState(true);
   const [loadingVerses, setLoadingVerses] = useState(false);
+  
+  // --- SETTINGS STATES ---
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState('night'); // 'night' or 'light'
+  const [showTranslation, setShowTranslation] = useState(true);
+  const [fontSize, setFontSize] = useState(3); // 1 to 5
   
   // Refs
   const verseCache = useRef({});
@@ -72,11 +79,18 @@ function App() {
     setPage(1);
   };
 
+  // --- THEME COLORS ---
+  // If theme is 'light', we use warm colors (Heaven Light). If 'night', we use the original dark scheme (Night Sky).
+  const isLight = theme === 'light';
+  
+  const mainBgClass = isLight ? 'bg-[#f5f5f0] text-[#2b2b2b]' : 'bg-[rgb(22,22,24)] text-[rgb(252,252,252)]';
+  const headerBgClass = isLight ? 'bg-[#e7e5e4] border-stone-300' : 'bg-[rgb(46,47,48)] border-gray-700/50';
+  
   return (
-    <div className="flex h-screen bg-[rgb(22,22,24)] text-[rgb(252,252,252)] font-sans overflow-hidden">
+    <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${mainBgClass}`}>
       
       {/* --- GLOBAL HEADER --- */}
-      <div className="fixed top-0 w-full bg-[rgb(46,47,48)] z-50 h-16 px-4 flex items-center justify-between shadow-sm border-b border-gray-700/50">
+      <div className={`fixed top-0 w-full z-50 h-16 px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
         
         {/* Left: Logo */}
         <div className="flex items-center gap-3 z-20">
@@ -106,8 +120,11 @@ function App() {
 
         {/* Right: Settings */}
         <div className="flex items-center z-20">
-           <button className="p-2 hover:bg-gray-700 rounded-full transition-colors text-gray-300">
-             <Settings size={20} />
+           <button 
+             onClick={() => setIsSettingsOpen(true)}
+             className={`p-2 rounded-full transition-colors ${isLight ? 'hover:bg-stone-300 text-stone-700' : 'hover:bg-gray-700 text-gray-300'}`}
+           >
+             <Settings size={24} />
            </button>
         </div>
       </div>
@@ -116,7 +133,7 @@ function App() {
       <main className="flex-1 h-full flex flex-col overflow-hidden relative pt-16">
         {!selectedChapter ? (
           <div className="h-full flex flex-col items-center justify-center text-center opacity-50 space-y-4">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center animate-pulse">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-300' : 'bg-gray-800'}`}>
                <img src={logoquran} className="w-8 h-8 opacity-50" />
             </div>
             <p className="text-lg font-mono">Bismillah</p>
@@ -130,9 +147,25 @@ function App() {
             setPage={setPage}
             paginationMeta={paginationMeta}
             scrollRef={contentTopRef}
+            // PASS SETTINGS PROPS
+            theme={theme}
+            showTranslation={showTranslation}
+            fontSize={fontSize}
           />
         )}
       </main>
+
+      {/* --- MODAL (Rendered at root level) --- */}
+      <SettingsModal 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        theme={theme}
+        setTheme={setTheme}
+        showTranslation={showTranslation}
+        setShowTranslation={setShowTranslation}
+        fontSize={fontSize}
+        setFontSize={setFontSize}
+      />
     </div>
   );
 }

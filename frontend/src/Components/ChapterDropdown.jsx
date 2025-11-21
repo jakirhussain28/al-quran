@@ -36,7 +36,7 @@ function ChapterDropdown({ chapters, selectedChapter, onSelect }) {
                   <span className={`text-sm font-medium truncate ${isSelected ? 'text-emerald-400' : 'text-gray-200'}`}>
                     {chapter.name_complex}
                   </span>
-                  <span className={`font-arabic text-xs mt-0.5 ${isSelected ? 'text-emerald-500/80' : 'text-gray-500 group-hover:text-gray-400'}`}>
+                  <span className={`font-arabic text-md mt-0.5 ${isSelected ? 'text-emerald-500/80' : 'text-gray-500 group-hover:text-gray-400'}`}>
                     {chapter.name_arabic}
                   </span>
                 </div>
