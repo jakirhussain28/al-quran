@@ -1,4 +1,5 @@
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import logoquran from '/src/assets/logo-quran.svg';
 
 function VerseList({ 
   verses, 
@@ -16,7 +17,9 @@ function VerseList({
       <div className="max-w-6xl mx-auto pb-10">
         {loading ? (
            <div className="flex justify-center py-20">
-             <Loader2 className="animate-spin h-10 w-10 text-emerald-500"/>
+              <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center animate-pulse">
+                <img src={logoquran} className="w-8 h-8 opacity-50" />
+              </div>
            </div>
         ) : (
           <>

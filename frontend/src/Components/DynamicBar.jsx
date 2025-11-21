@@ -65,11 +65,11 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
             <>
               {/* Left: English Name */}
               <span className="text-gray-200 font-medium text-sm md:text-base z-10 truncate max-w-[40%] md:max-w-none">
-                {selectedChapter.name_simple}
+                {selectedChapter.translated_name.name}
               </span>
 
               {/* Center: Arabic Name */}
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[55%] font-arabic text-lg md:text-xl text-emerald-500 pb-1 leading-none select-none pointer-events-none">
+              <span className="absolute left-1/2 top-2/3 -translate-x-1/2 -translate-y-[55%] font-arabic text-lg md:text-xl text-emerald-500 pb-1 leading-none select-none pointer-events-none">
                 {selectedChapter.name_arabic}
               </span>
 

@@ -4,7 +4,11 @@ import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
 
-const API_URL = import.meta.env.BACKEND_API_URL || 'http://localhost:3000';
+// LOGIC: If Prod (Vercel), use relative path so it goes through vercel.json rewrites.
+// If Dev, assume Python is on port 8000 or standard Vercel dev port.
+const isProduction = import.meta.env.BACKEND_API_URL;
+const API_URL = isProduction ? '' : 'http://localhost:3000';
+
 function App() {
   // --- DATA STATES ---
   const [chapters, setChapters] = useState([]);
@@ -23,12 +27,17 @@ function App() {
 
   // --- FETCH CHAPTERS ---
   useEffect(() => {
+    setLoadingChapters(true);
     fetch(`${API_URL}/api/chapters`)
       .then(res => res.json())
       .then(data => {
         setChapters(data.chapters || []);
+        setLoadingChapters(false);
       })
-      .catch(err => console.error("Failed to load chapters", err));
+      .catch(err => {
+        console.error("Failed to load chapters", err);
+        setLoadingChapters(false);
+      });
   }, []);
 
   // --- FETCH VERSES ---
@@ -81,13 +90,21 @@ function App() {
         </div>
 
         {/* CENTER: DYNAMIC BAR CONTAINER */}
-        {/* FIX: items-start + pt-3 ensures it grows DOWN, not from center */}
-        <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pointer-events-none pt-2.5">
-          <DynamicBar 
-            chapters={chapters}
-            selectedChapter={selectedChapter}
-            onSelect={handleChapterSelect}
-          />
+        <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
+          <div className="pointer-events-auto">
+            {loadingChapters ? (
+              // LOADING STATE: Skeleton Pulse
+              <div className="h-11 w-[300px] md:w-[500px] bg-[#1a1b1d] border border-white/5 rounded-2xl animate-pulse flex items-center justify-center">
+                <div className="h-2 w-24 bg-gray-700 rounded-full opacity-50"></div>
+              </div>
+            ) : (
+              <DynamicBar 
+                chapters={chapters}
+                selectedChapter={selectedChapter}
+                onSelect={handleChapterSelect}
+              />
+            )}
+          </div>
         </div>
 
         {/* Right: Settings */}
@@ -106,6 +123,7 @@ function App() {
                <img src={logoquran} className="w-8 h-8 opacity-50" />
             </div>
             <p className="text-lg font-mono">Bismillah</p>
+            {loadingChapters && <p className="text-xs text-gray-500">Connecting to Server...</p>}
           </div>
         ) : (
           <VerseList

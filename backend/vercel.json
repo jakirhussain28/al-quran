@@ -6,10 +6,10 @@
             "src": "server.py"
         }
     ],
-    "routes": [
+    "rewrites": [
         {
-            "src": "/(.*)",
-            "dest": "server.py"
+            "source": "/api/(.*)",
+            "destination": "/server.py"
         }
     ]
 }
