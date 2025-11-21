@@ -74,7 +74,7 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
               </span>
 
               {/* Right: Verses Count Badge */}
-              <div className="z-10 flex items-center justify-center bg-[#2A2B2D] text-gray-400 rounded-full border border-white/5 h-7 min-w-[24px] md:min-w-[28px] px-2 md:px-3">
+              <div className="z-10 flex items-center justify-center bg-[#2A2B2D] text-gray-400 rounded-full border border-white/5 h-7 min-w-6 md:min-w-7 px-2 md:px-3">
                 <span className="text-[10px] font-mono md:hidden">
                   {selectedChapter.verses_count}
                 </span>
