@@ -110,9 +110,9 @@ function VerseList({
   return (
     <div 
       ref={scrollRef}
-      className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth custom-scrollbar"
+      className="flex-1 overflow-y-auto p-4 lg:p-6 scroll-smooth custom-scrollbar"
     >
-      <div className="max-w-4xl mx-auto pb-24">
+      <div className="max-w-6xl mx-auto pb-24">
         {loading ? (
            <div className="flex justify-center py-20">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-200' : 'bg-gray-800'}`}>
@@ -124,19 +124,19 @@ function VerseList({
             <div className="space-y-6 mb-10">
               {verses.map((verse) => (
                 <div 
-                    key={verse.id} // [cite: 171]
+                    key={verse.id}
                     className={`rounded-2xl border transition-colors duration-300 flex flex-col md:flex-row ${cardClass}`}
                 >
                   
                   {/* --- LEFT COLUMN (Desktop) / HEADER (Mobile) --- */}
                   <div className={`
                     flex md:flex-col items-center justify-between md:justify-start md:items-center
-                    p-4 md:py-6 md:px-5 md:w-24 md:border-r md:shrink-0 gap-4
+                    p-4 md:py-6 md:px-5 md:w-20 md:border-r md:shrink-0 gap-4
                     ${isLight ? 'border-stone-100 bg-stone-50/50' : 'border-white/5 bg-white/2'}
                   `}>
                     {/* Verse Key Badge */}
                     <span className={`
-                      text-xs font-mono px-2.5 py-1 rounded-lg border font-medium
+                      text-xs font-mono px-3 py-1 rounded-lg border font-medium
                       ${verseKeyBg}
                     `}>
                       {verse.verse_key}
