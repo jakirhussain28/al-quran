@@ -28,7 +28,7 @@ const VerseAudioPlayer = ({
         relative group flex items-center justify-center 
         w-10 h-10 rounded-full border transition-all duration-300
         ${buttonClass}
-        ${isPlaying ? 'scale-110 ring-2 ring-emerald-500/20' : ''}
+        ${isPlaying ? 'scale-120 ring-2 ring-emerald-500/20' : ''}
       `}
       aria-label={isPlaying ? "Pause" : "Play"}
     >

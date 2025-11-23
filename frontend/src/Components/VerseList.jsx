@@ -18,6 +18,20 @@ function VerseList({
   const [playingVerseKey, setPlayingVerseKey] = useState(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const audioRef = useRef(null);
+  
+  // --- SCROLL TRACKING REFS ---
+  const verseRefs = useRef({}); 
+
+  // Helper to scroll to a specific verse
+  const scrollToVerse = (verseKey) => {
+    const element = verseRefs.current[verseKey];
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' // Keeps the verse in the middle of the screen
+      });
+    }
+  };
 
   // Handle Audio Play/Pause logic
   const handlePlayPause = (verse) => {
@@ -33,11 +47,10 @@ function VerseList({
     // 2. Stop any existing audio
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
 
     // 3. Determine Audio URL 
-    // The API with audio=7 returns a nested object: verse.audio.url
-    // We must prepend the base URL if the API returns a relative path.
     const relativeUrl = verse.audio?.url;
     if (!relativeUrl) {
         console.warn("No audio URL found for verse", verseKey);
@@ -50,6 +63,9 @@ function VerseList({
 
     setAudioLoading(true);
     setPlayingVerseKey(verseKey);
+    
+    // --- TRACKING EFFECT: Scroll to the verse being played ---
+    scrollToVerse(verseKey);
 
     // 4. Create new Audio instance
     const newAudio = new Audio(audioUrl);
@@ -64,8 +80,16 @@ function VerseList({
         setPlayingVerseKey(null);
       });
 
+    // --- AUTO-PLAY & TRACKING LOGIC ---
     newAudio.onended = () => {
-      setPlayingVerseKey(null);
+      const currentIndex = verses.findIndex((v) => v.verse_key === verse.verse_key);
+      
+      if (currentIndex !== -1 && currentIndex < verses.length - 1) {
+        const nextVerse = verses[currentIndex + 1];
+        handlePlayPause(nextVerse); // This will trigger scrollToVerse for the next one
+      } else {
+        setPlayingVerseKey(null);
+      }
     };
   };
 
@@ -127,7 +151,9 @@ function VerseList({
               {verses.map((verse) => (
                 <div 
                     key={verse.id}
-                    className={`rounded-2xl border transition-colors duration-300 flex flex-col md:flex-row ${cardClass}`}
+                    // --- ASSIGN REF HERE ---
+                    ref={(el) => (verseRefs.current[verse.verse_key] = el)} 
+                    className={`rounded-2xl border transition-colors duration-300 flex flex-col md:flex-row ${cardClass} ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-2 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}`}
                 >
                   
                   {/* --- LEFT COLUMN (Desktop) / HEADER (Mobile) --- */}
