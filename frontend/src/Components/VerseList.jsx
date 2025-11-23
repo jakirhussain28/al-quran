@@ -21,7 +21,7 @@ function VerseList({
 
   // Handle Audio Play/Pause logic
   const handlePlayPause = (verse) => {
-    const verseKey = verse.verse_key; // [cite: 171]
+    const verseKey = verse.verse_key;
     
     // 1. If clicking the currently playing verse, pause it.
     if (playingVerseKey === verseKey) {
@@ -36,15 +36,17 @@ function VerseList({
     }
 
     // 3. Determine Audio URL 
-    // Note: Ensure your API maps the specific verse audio URL correctly.
-    // Based on Audio API[cite: 676], ideally, the verse object has an attached audio URL.
-    // If your backend sends just the filename, construct the path:
-    const audioUrl = verse.audio?.url || `https://verses.quran.com/${verse.audio_url}`; 
-
-    if (!audioUrl) {
+    // The API with audio=7 returns a nested object: verse.audio.url
+    // We must prepend the base URL if the API returns a relative path.
+    const relativeUrl = verse.audio?.url;
+    if (!relativeUrl) {
         console.warn("No audio URL found for verse", verseKey);
         return;
     }
+
+    const audioUrl = relativeUrl.startsWith('http') 
+      ? relativeUrl 
+      : `https://verses.quran.com/${relativeUrl}`;
 
     setAudioLoading(true);
     setPlayingVerseKey(verseKey);
@@ -144,7 +146,7 @@ function VerseList({
 
                     {/* Play Button Component */}
                     <VerseAudioPlayer 
-                        audioUrl={verse.audio_url} // Ensure this exists in your data
+                        audioUrl={verse.audio?.url} 
                         verseKey={verse.verse_key}
                         theme={theme}
                         isPlaying={playingVerseKey === verse.verse_key}
@@ -161,7 +163,6 @@ function VerseList({
                       dir="rtl"
                     >
                       {verse.text_uthmani} 
-                      {/*  textUthmani */}
                     </p>
 
                     {/* Translation (Conditional) */}

@@ -85,7 +85,8 @@ async def get_verses(chapter_id: int, page: int = 1):
     params = {
         "language": "en",
         "words": "false",
-        "translations": "131", 
+        "translations": "20",   # Changed to 20 (Saheeh International)
+        "audio": "7",           # Added 7 (Mishari Rashid al-Afasy)
         "fields": "text_uthmani",
         "page": page,
         "per_page": 10
