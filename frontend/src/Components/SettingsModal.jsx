@@ -59,7 +59,7 @@ function SettingsModal({
                 w-5 h-5 sm:w-6 sm:h-6 rounded-full shadow-sm transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
                 ${theme === 'light' 
                   ? 'translate-x-7 sm:translate-x-8 bg-emerald-500' 
-                  : 'translate-x-0 bg-[#4b4b4b]'
+                  : 'translate-x-0 bg-[#1c1b1b]'
                 }
               `}></div>
             </button>

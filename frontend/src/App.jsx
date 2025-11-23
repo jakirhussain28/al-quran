@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings, Square } from 'lucide-react'; 
 import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
@@ -19,11 +19,15 @@ function App() {
   const [loadingChapters, setLoadingChapters] = useState(true);
   const [loadingVerses, setLoadingVerses] = useState(false);
   
+  // --- AUDIO STATE ---
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const stopAudioTrigger = useRef(() => {}); 
+
   // --- SETTINGS STATES ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState('night'); // 'night' or 'light'
+  const [theme, setTheme] = useState('night'); 
   const [showTranslation, setShowTranslation] = useState(true);
-  const [fontSize, setFontSize] = useState(3); // 1 to 5
+  const [fontSize, setFontSize] = useState(3); 
   
   // Refs
   const verseCache = useRef({});
@@ -80,45 +84,91 @@ function App() {
   };
 
   // --- THEME COLORS ---
-  // If theme is 'light', we use warm colors (Heaven Light). If 'night', we use the original dark scheme (Night Sky).
   const isLight = theme === 'light';
   
   const mainBgClass = isLight ? 'bg-[#f5f5f0] text-[#2b2b2b]' : 'bg-[rgb(22,22,24)] text-[rgb(252,252,252)]';
   const headerBgClass = isLight ? 'bg-[#e7e5e4] border-stone-300' : 'bg-[rgb(46,47,48)] border-gray-700/50';
   
+  // Brown (Amber) Border Styles
+  const stopBtnClass = isLight 
+    ? 'bg-red-100 text-red-600 border-1 border-amber-800' 
+    : 'bg-red-500/20 text-red-400 border-1 border-amber-700';
+
   return (
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${mainBgClass}`}>
       
       {/* --- GLOBAL HEADER --- */}
       <div className={`fixed top-0 w-full z-50 h-16 px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
         
-        {/* Left: Logo */}
+        {/* LEFT SECTION: Logo OR Mobile Stop Button */}
         <div className="flex items-center gap-3 z-20">
-          <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+          {/* Mobile: Toggle between Logo and Stop Button */}
+          <div className="md:hidden">
+            {isAudioPlaying ? (
+              <button 
+                onClick={() => stopAudioTrigger.current()} 
+                className={`w-9 h-9 rounded-full flex items-center justify-center animate-in fade-in zoom-in duration-200 ${stopBtnClass}`}
+              >
+                <Square size={16} fill="currentColor" />
+              </button>
+            ) : (
+              <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+            )}
+          </div>
+
+          {/* Desktop: Always Logo */}
+          <div className="hidden md:block">
+             <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+          </div>
+
           <span className="hidden md:block font-bold text-xl tracking-tight" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
             Al-Qur'an
           </span>
         </div>
 
-        {/* CENTER: DYNAMIC BAR CONTAINER */}
+        {/* CENTER SECTION: Dynamic Bar + Desktop Stop Button */}
+        {/* UPDATED: Removed h-16/items-center, added pt-2.5 to anchor to top */}
         <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
-          <div className="pointer-events-auto">
-            {loadingChapters ? (
-              // LOADING STATE: Skeleton Pulse
-              <div className="h-11 w-[300px] md:w-[500px] bg-[#1a1b1d] border border-white/5 rounded-2xl animate-pulse flex items-center justify-center">
-                <div className="h-2 w-24 bg-gray-700 rounded-full opacity-50"></div>
-              </div>
-            ) : (
-              <DynamicBar 
-                chapters={chapters}
-                selectedChapter={selectedChapter}
-                onSelect={handleChapterSelect}
-              />
-            )}
+          
+          {/* UPDATED: Changed items-center to items-start so bar grows down */}
+          <div className="pointer-events-auto flex items-start gap-1"> 
+            
+            {/* 1. DESKTOP STOP BUTTON (Left of Bar) */}
+            <div className={`
+               hidden md:flex items-center justify-center mr-0
+               transition-all duration-300 ease-out transform
+               ${isAudioPlaying 
+                 ? 'opacity-100 translate-x-0 scale-100' 
+                 : 'opacity-0 translate-x-4 scale-75 pointer-events-none'
+               }
+               mt-1 // Align button with the bar header (approx 44px vs 36px)
+            `}>
+               <button 
+                  onClick={() => stopAudioTrigger.current()} 
+                  className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform ${stopBtnClass}`}
+                >
+                  <Square size={16} fill="currentColor" />
+                </button>
+            </div>
+
+            {/* 2. DYNAMIC BAR CONTAINER */}
+            <div>
+              {loadingChapters ? (
+                <div className="h-11 w-[300px] md:w-[500px] bg-[#1a1b1d] border border-white/5 rounded-2xl animate-pulse flex items-center justify-center">
+                  <div className="h-2 w-24 bg-gray-700 rounded-full opacity-50"></div>
+                </div>
+              ) : (
+                <DynamicBar 
+                  chapters={chapters}
+                  selectedChapter={selectedChapter}
+                  onSelect={handleChapterSelect}
+                />
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right: Settings */}
+        {/* RIGHT SECTION: Settings */}
         <div className="flex items-center z-20">
            <button 
              onClick={() => setIsSettingsOpen(true)}
@@ -147,15 +197,16 @@ function App() {
             setPage={setPage}
             paginationMeta={paginationMeta}
             scrollRef={contentTopRef}
-            // PASS SETTINGS PROPS
             theme={theme}
             showTranslation={showTranslation}
             fontSize={fontSize}
+            // --- AUDIO CONTROL PROPS ---
+            onAudioStatusChange={setIsAudioPlaying}
+            registerStopHandler={(handler) => stopAudioTrigger.current = handler}
           />
         )}
       </main>
 
-      {/* --- MODAL (Rendered at root level) --- */}
       <SettingsModal 
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

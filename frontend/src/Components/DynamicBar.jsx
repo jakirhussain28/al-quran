@@ -60,7 +60,7 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
       `}>
 
         {/* --- 1. HEADER (THE BAR) --- */}
-        <div className="h-10 md:h-11 w-full flex items-center justify-between px-3 md:px-5 cursor-pointer shrink-0 relative z-20 bg-[#1a1b1d]">
+        <div className="h-10 md:h-10.5 w-full flex items-center justify-between px-3 md:px-3 cursor-pointer shrink-0 relative z-20 bg-[#1a1b1d]">
           {selectedChapter ? (
             <>
               {/* Left: English Name */}
@@ -69,7 +69,7 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
               </span>
 
               {/* Center: Arabic Name */}
-              <span className="absolute left-1/2 top-2/3 -translate-x-1/2 -translate-y-[55%] font-arabic text-lg md:text-xl text-emerald-500 pb-1 leading-none select-none pointer-events-none">
+              <span className="absolute sm:left-1/2 top-3/5 left-4/7 -translate-x-1/2 -translate-y-[55%] font-arabic text-lg md:text-xl text-emerald-500 pb-1 leading-none select-none pointer-events-none">
                 {selectedChapter.name_arabic}
               </span>
 
