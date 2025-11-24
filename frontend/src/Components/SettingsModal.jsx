@@ -71,7 +71,7 @@ function SettingsModal({
 
           {/* --- ROW 2: TRANSLATION --- */}
           <div className="bg-[#192516] rounded-3xl h-16 sm:h-20 px-4 sm:px-6 flex items-center justify-between">
-            <span className="text-gray-400 text-sm sm:text-base font-medium">Toggle Translation</span>
+            <span className="text-gray-400 text-sm sm:text-base font-medium">Sahih Translation</span>
             
             {/* Pill Toggle */}
             <div className="bg-[#3e3e3e] rounded-full p-1 flex items-center relative h-7 w-20 sm:h-8 sm:w-24 shrink-0">
@@ -112,7 +112,7 @@ function SettingsModal({
                     className={`
                       w-3 h-3 sm:w-4 sm:h-4 rounded-full z-10 transition-all duration-200 focus:outline-none relative
                       ${fontSize === step 
-                        ? 'bg-emerald-500 scale-125 shadow-lg' 
+                        ? 'bg-emerald-500 scale-150 shadow-lg' 
                         : 'bg-gray-500 hover:bg-gray-400'}
                     `}
                   >
