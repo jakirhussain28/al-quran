@@ -10,6 +10,7 @@ load_dotenv()
 
 app = FastAPI()
 
+# CORS Configuration
 origins = [
     "https://alquran-furqan.vercel.app",
     "https://alquran-foundation.vercel.app",
@@ -37,7 +38,6 @@ token_store = {"access_token": None, "expires_at": 0}
 
 async def get_valid_token():
     global token_store
-    # Check if token exists and is valid (with 60s buffer)
     if token_store["access_token"] and time.time() < token_store["expires_at"] - 60:
         return token_store["access_token"]
 
@@ -60,35 +60,21 @@ async def get_valid_token():
             return token_store["access_token"]
         except httpx.HTTPError as e:
             print(f"Auth Error: {e}")
-            # Reset token store on failure to force retry next time
-            token_store = {"access_token": None, "expires_at": 0}
             raise HTTPException(status_code=401, detail="Authentication failed")
 
 async def make_request(endpoint: str, params: dict = {}):
-    try:
-        token = await get_valid_token()
-        headers = {"x-auth-token": token, "x-client-id": CLIENT_ID}
-        
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{BASE_URL}{endpoint}", headers=headers, params=params)
-            
-            # Handle specific API errors
-            if resp.status_code == 401:
-                # If upstream says 401, clear our cache and retry once
-                token_store["access_token"] = None
-                return await make_request(endpoint, params)
-                
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail=resp.text)
-                
-            return resp.json()
-    except Exception as e:
-        print(f"Request Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    token = await get_valid_token()
+    headers = {"x-auth-token": token, "x-client-id": CLIENT_ID}
+    
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BASE_URL}{endpoint}", headers=headers, params=params)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text)
+        return resp.json()
 
 @app.get("/api")
 async def api_root():
-    return {"status": "ok", "message": "Quran API Production Proxy Ready"}
+    return {"status": "ok", "message": "Quran API Proxy Ready"}
 
 @app.get("/api/chapters")
 async def get_chapters():
@@ -99,8 +85,8 @@ async def get_verses(chapter_id: int, page: int = 1):
     params = {
         "language": "en",
         "words": "false",
-        "translations": "20",   # Saheeh International
-        "audio": "7",          
+        "translations": "20",   # Changed to 20 (Saheeh International)
+        "audio": "7",           # Added 7 (Mishari Rashid al-Afasy)
         "fields": "text_uthmani",
         "page": page,
         "per_page": 10
