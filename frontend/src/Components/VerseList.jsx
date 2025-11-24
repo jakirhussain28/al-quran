@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import logoquran from '/src/assets/logo-quran.svg';
 import VerseAudioPlayer from './VerseAudioPlayer'; 
 import ChapterNavigation from './ChapterNavigation';
-import { Loader2 } from 'lucide-react';
 
 function VerseList({ 
   verses, 
@@ -18,8 +17,8 @@ function VerseList({
   registerStopHandler,
   selectedChapter,
   onChapterNavigate,
-  targetVerse, // Received prop
-  setTargetVerse // Received prop
+  targetVerse, 
+  setTargetVerse 
 }) {
   // --- AUDIO STATE MANAGEMENT ---
   const [playingVerseKey, setPlayingVerseKey] = useState(null);
@@ -42,7 +41,8 @@ function VerseList({
     if (element) {
       // Timeout ensures layout is stable
       setTimeout(() => {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // CHANGED: 'block: start' aligns the element to the top of the viewport
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         
         // Add highlight effect
         element.classList.add('ring-1', 'ring-emerald-700');
@@ -59,7 +59,7 @@ function VerseList({
     }
   };
 
-  // --- NEW: WATCH FOR JUMP TARGET ---
+  // --- WATCH FOR JUMP TARGET ---
   useEffect(() => {
     if (targetVerse && selectedChapter) {
         const verseKey = `${selectedChapter.id}:${targetVerse.id}`;
@@ -98,7 +98,7 @@ function VerseList({
     }
   }, [handleObserver]);
 
-  // --- AUDIO LOGIC (Unchanged) ---
+  // --- AUDIO LOGIC ---
   useEffect(() => {
     if (registerStopHandler) {
       registerStopHandler(() => {
@@ -180,6 +180,7 @@ function VerseList({
             }
         };
     }
+    // Auto-scroll when play starts
     scrollToVerse(verseKey);
   };
 
@@ -238,7 +239,13 @@ function VerseList({
             <div 
                 key={verse.verse_key} 
                 ref={(el) => (verseRefs.current[verse.verse_key] = el)} 
-                className={`rounded-2xl border transition-all duration-300 flex flex-col md:flex-row ${cardClass} ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-1 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}`}
+                // UPDATED CLASS: Added scroll-mt-20 md:scroll-mt-24 for header offset
+                className={`
+                  scroll-mt-10 md:scroll-mt-20
+                  rounded-2xl border transition-all duration-300 flex flex-col md:flex-row 
+                  ${cardClass} 
+                  ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-1 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}
+                `}
             >
               <div className={`
                 flex md:flex-col items-center justify-between md:justify-start md:items-center
