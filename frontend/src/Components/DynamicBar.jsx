@@ -3,23 +3,17 @@ import ChapterDropdown from './ChapterDropdown';
 
 function DynamicBar({ chapters, selectedChapter, onSelect }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const barRef = useRef(null); // 1. Ref to track the component
+  const barRef = useRef(null);
 
   // 2. Click Outside Logic
   useEffect(() => {
     function handleClickOutside(event) {
-      // If dropdown is open AND the click target is NOT inside this component
       if (isDropdownOpen && barRef.current && !barRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
     }
-
-    // Bind the event listener
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      // Unbind the event listener on cleanup
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isDropdownOpen]);
 
   // Desktop Hover Logic
@@ -43,7 +37,7 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
 
   return (
     <div 
-      ref={barRef} // 3. Attach Ref here
+      ref={barRef} 
       className="relative pointer-events-auto z-50 flex flex-col items-center"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -52,19 +46,25 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
       {/* ANIMATION CONTAINER */}
       <div className={`
         relative bg-[#1a1b1d] border shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] overflow-hidden flex flex-col
-        w-[calc(100vw-120px)] md:w-[500px]
+        
+        /* --- WIDTH LOGIC MODIFICATION START --- */
         ${isDropdownOpen 
-          ? 'border-white/10 rounded-3xl max-h-[65vh]' 
-          : 'border-white/10 hover:border-white/20 rounded-[20px] md:rounded-[22px] max-h-11 md:max-h-11'
+          ? 'w-[94vw] md:w-[500px] border-white/10 rounded-3xl max-h-[65vh]' // Open: Full width on mobile
+          : 'w-[calc(100vw-130px)] md:w-[500px] border-white/10 hover:border-white/20 rounded-[20px] md:rounded-[22px] max-h-11 md:max-h-11' // Closed: Fits between icons
         }
+        /* --- WIDTH LOGIC MODIFICATION END --- */
       `}>
 
         {/* --- 1. HEADER (THE BAR) --- */}
         <div className="h-10 md:h-10.5 w-full flex items-center justify-between px-3 md:px-3 cursor-pointer shrink-0 relative z-20 bg-[#1a1b1d]">
           {selectedChapter ? (
             <>
-              {/* Left: English Name */}
-              <span className="text-gray-200 font-medium text-sm md:text-base z-10 truncate max-w-[40%] md:max-w-none">
+              {/* Left: English Name - Truncate ensures it doesn't hit the Arabic text */}
+              <span className={`
+                text-gray-200 font-medium text-sm md:text-base z-10 truncate transition-all duration-300
+                ${isDropdownOpen ? 'max-w-[35%]' : 'max-w-[40%]'} 
+                md:max-w-none
+              `}>
                 {selectedChapter.translated_name.name}
               </span>
 
