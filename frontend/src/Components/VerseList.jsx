@@ -17,7 +17,9 @@ function VerseList({
   onAudioStatusChange, 
   registerStopHandler,
   selectedChapter,
-  onChapterNavigate
+  onChapterNavigate,
+  targetVerse, // Received prop
+  setTargetVerse // Received prop
 }) {
   // --- AUDIO STATE MANAGEMENT ---
   const [playingVerseKey, setPlayingVerseKey] = useState(null);
@@ -28,10 +30,8 @@ function VerseList({
   const currentAudioKeyRef = useRef(null);
   const verseRefs = useRef({}); 
   const loadMoreRef = useRef(null);
-  
-  // CRITICAL: Keep a ref of verses so the audio 'onended' callback 
-  // can see the most recent list (including appended verses)
   const versesRef = useRef(verses);
+
   useEffect(() => {
     versesRef.current = verses;
   }, [verses]);
@@ -40,7 +40,16 @@ function VerseList({
   const scrollToVerse = (verseKey) => {
     const element = verseRefs.current[verseKey];
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Timeout ensures layout is stable
+      setTimeout(() => {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add highlight effect
+        element.classList.add('ring-1', 'ring-emerald-700');
+        setTimeout(() => {
+           element.classList.remove('ring-1', 'ring-emerald-700');
+        }, 1000);
+      }, 100);
     }
   };
 
@@ -50,30 +59,27 @@ function VerseList({
     }
   };
 
-  const shouldShowBismillah = () => {
-    if (!selectedChapter) return false;
-    // Only show at absolute top (start of list)
-    if (selectedChapter.id === 1 || selectedChapter.id === 9) return false;
-    return true;
-  };
+  // --- NEW: WATCH FOR JUMP TARGET ---
+  useEffect(() => {
+    if (targetVerse && selectedChapter) {
+        const verseKey = `${selectedChapter.id}:${targetVerse.id}`;
+        
+        // Check if verse is already in DOM/State
+        const verseExists = verses.find(v => v.verse_key === verseKey);
+
+        if (verseExists) {
+            scrollToVerse(verseKey);
+            setTargetVerse(null); // Reset target once found and scrolled
+        }
+    }
+  }, [targetVerse, verses, selectedChapter, setTargetVerse]);
 
   // --- INFINITE SCROLL OBSERVER ---
   const handleObserver = useCallback((entries) => {
     const target = entries[0];
-    
-    // FIX: Race Condition Prevention
-    // The API returns 10 verses per page. We verify that we have enough verses 
-    // for the CURRENT page before we allow requesting the NEXT page.
-    // e.g. If page is 1, we need 10 verses. If verses.length is 10, we can go to page 2.
-    // If page is 2, we need 20 verses. If verses.length is 10, we must WAIT.
     const expectedCount = page * 10;
     const hasDataCaughtUp = verses.length >= expectedCount;
 
-    // Only load more if:
-    // 1. Trigger is visible (isIntersecting)
-    // 2. We are not currently loading (loading)
-    // 3. We haven't reached the last page (page < totalPages)
-    // 4. We have received the data for the current page (hasDataCaughtUp)
     if (target.isIntersecting && !loading && page < totalPages && hasDataCaughtUp) {
       setPage((prev) => prev + 1);
     }
@@ -81,8 +87,8 @@ function VerseList({
 
   useEffect(() => {
     const option = {
-      root: null, // viewport
-      rootMargin: "100px", // Trigger slightly before bottom
+      root: null, 
+      rootMargin: "100px",
       threshold: 0
     };
     const observer = new IntersectionObserver(handleObserver, option);
@@ -92,8 +98,7 @@ function VerseList({
     }
   }, [handleObserver]);
 
-
-  // --- GLOBAL STOP LOGIC ---
+  // --- AUDIO LOGIC (Unchanged) ---
   useEffect(() => {
     if (registerStopHandler) {
       registerStopHandler(() => {
@@ -108,11 +113,9 @@ function VerseList({
     }
   }, [registerStopHandler, onAudioStatusChange]);
 
-  // --- HANDLE PLAY / PAUSE ---
   const handlePlayPause = (verse) => {
     const verseKey = verse.verse_key;
     
-    // PAUSE
     if (playingVerseKey === verseKey) {
       audioRef.current?.pause();
       setPlayingVerseKey(null);
@@ -120,17 +123,13 @@ function VerseList({
       return;
     }
 
-    // PLAY
     const relativeUrl = verse.audio?.url;
     if (!relativeUrl) return;
     
-    const audioUrl = relativeUrl.startsWith('http') 
-      ? relativeUrl 
-      : `https://verses.quran.com/${relativeUrl}`;
+    const audioUrl = relativeUrl.startsWith('http') ? relativeUrl : `https://verses.quran.com/${relativeUrl}`;
 
     setAudioLoading(true);
     
-    // Check Resume
     const isResuming = currentAudioKeyRef.current === verseKey && audioRef.current;
 
     if (isResuming) {
@@ -145,7 +144,6 @@ function VerseList({
                 setAudioLoading(false);
             });
     } else {
-        // New Track
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -168,9 +166,7 @@ function VerseList({
                 if (onAudioStatusChange) onAudioStatusChange(false);
             });
 
-        // CONTINUOUS PLAY LOGIC
         newAudio.onended = () => {
-            // Use ref to get LATEST verses (including newly loaded ones)
             const currentList = versesRef.current;
             const currentIndex = currentList.findIndex((v) => v.verse_key === verse.verse_key);
             
@@ -178,7 +174,6 @@ function VerseList({
                 const nextVerse = currentList[currentIndex + 1];
                 handlePlayPause(nextVerse); 
             } else {
-                // End of list (or waiting for load)
                 setPlayingVerseKey(null);
                 currentAudioKeyRef.current = null; 
                 if (onAudioStatusChange) onAudioStatusChange(false);
@@ -195,6 +190,12 @@ function VerseList({
   }, []);
 
   // --- STYLING ---
+  const shouldShowBismillah = () => {
+    if (!selectedChapter) return false;
+    if (selectedChapter.id === 1 || selectedChapter.id === 9) return false;
+    return true;
+  };
+
   const arabicSizeMap = {
     1: 'text-xl leading-[2.0]',
     2: 'text-2xl leading-[2.2]',
@@ -224,7 +225,6 @@ function VerseList({
     >
       <div className="max-w-6xl mx-auto pb-24">
         
-        {/* BISMILLAH (Start of Surah only) */}
         {shouldShowBismillah() && (
           <div className="flex flex-col items-center justify-center py-8 pb-12 select-none">
             <div className={`font-arabic text-2xl md:text-4xl leading-relaxed opacity-90 transition-colors duration-300 ${isLight ? 'text-stone-700' : 'text-gray-300'}`}>
@@ -233,13 +233,12 @@ function VerseList({
           </div>
         )}
 
-        {/* VERSE LIST */}
         <div className="space-y-6 mb-4">
           {verses.map((verse) => (
             <div 
-                key={verse.verse_key} // Use verse_key as ID is unique globally but key is safer
+                key={verse.verse_key} 
                 ref={(el) => (verseRefs.current[verse.verse_key] = el)} 
-                className={`rounded-2xl border transition-colors duration-300 flex flex-col md:flex-row ${cardClass} ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-2 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}`}
+                className={`rounded-2xl border transition-all duration-300 flex flex-col md:flex-row ${cardClass} ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-1 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}`}
             >
               <div className={`
                 flex md:flex-col items-center justify-between md:justify-start md:items-center
@@ -282,17 +281,14 @@ function VerseList({
           ))}
         </div>
 
-        {/* LOADING INDICATOR / TRIGGER AREA */}
         <div ref={loadMoreRef} className="h-20 flex items-center justify-center w-full">
             {loading && (
-                 <div className={`flex items-center gap-2 text-sm ${isLight ? 'text-stone-400' : 'text-gray-600'}`}>
-                    <Loader2 className="animate-spin" size={20} />
-                    <span>Loading verses...</span>
-                 </div>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-300' : 'bg-gray-800'}`}>
+               <img src={logoquran} className="w-8 h-8 opacity-50" />
+            </div>
             )}
         </div>
 
-        {/* CHAPTER NAVIGATION FOOTER (Only when end is reached) */}
         {!loading && page >= totalPages && (
           <ChapterNavigation 
             selectedChapter={selectedChapter} 

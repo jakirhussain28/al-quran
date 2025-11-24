@@ -15,6 +15,9 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1); 
 
+  // --- NEW: JUMP TARGET STATE ---
+  const [targetVerse, setTargetVerse] = useState(null); 
+
   // --- UI STATES ---
   const [loadingChapters, setLoadingChapters] = useState(true);
   const [loadingVerses, setLoadingVerses] = useState(false);
@@ -51,11 +54,9 @@ function App() {
   useEffect(() => {
     if (!selectedChapter) return;
 
-    // AbortController to cancel stale requests if chapter/page changes quickly
     const controller = new AbortController();
     const signal = controller.signal;
 
-    // Only scroll to top if it's the FIRST page load of a chapter
     if (page === 1 && contentTopRef.current) {
       contentTopRef.current.scrollTop = 0;
     }
@@ -73,18 +74,15 @@ function App() {
         setTotalPages(meta.total_pages || 1);
 
         if (page === 1) {
-          // New Chapter: Reset list
           setVerses(fetchedVerses);
         } else {
-          // Infinite Scroll: Append list
+          // Infinite Scroll Append
           setVerses(prev => {
-             // Optional: Basic deduplication just in case
              const existingIds = new Set(prev.map(v => v.id));
              const uniqueNewVerses = fetchedVerses.filter(v => !existingIds.has(v.id));
              return [...prev, ...uniqueNewVerses];
           });
         }
-        
         setLoadingVerses(false);
       })
       .catch(err => {
@@ -108,18 +106,29 @@ function App() {
         setVerses([]); 
         setPage(1);
         setSelectedChapter(chapterObj);
+        setTargetVerse(null);
+    }
+  };
+
+  const handleVerseJump = (verseNumber) => {
+    // 1. Calculate Page (10 verses per page)
+    const requiredPage = Math.ceil(verseNumber / 10);
+    
+    // 2. Set target for VerseList to scroll to
+    setTargetVerse({ id: verseNumber });
+
+    // 3. If we are on a lower page, force load the required page
+    // (This appends it to the list, creating a gap if necessary, which is fine for now)
+    if (page < requiredPage) {
+        setPage(requiredPage);
     }
   };
 
   // --- THEME COLORS ---
   const isLight = theme === 'light';
-  
   const mainBgClass = isLight ? 'bg-[#f5f5f0] text-[#2b2b2b]' : 'bg-[rgb(22,22,24)] text-[rgb(252,252,252)]';
   const headerBgClass = isLight ? 'bg-[#e7e5e4] border-stone-300' : 'bg-[rgb(46,47,48)] border-gray-700/50';
-  
-  const stopBtnClass = isLight 
-    ? 'bg-red-100 text-red-600 border-1 border-amber-800' 
-    : 'bg-red-500/20 text-red-400 border-1 border-amber-700';
+  const stopBtnClass = isLight ? 'bg-red-100 text-red-600 border-1 border-amber-800' : 'bg-red-500/20 text-red-400 border-1 border-amber-700';
 
   return (
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${mainBgClass}`}>
@@ -127,7 +136,7 @@ function App() {
       {/* --- GLOBAL HEADER --- */}
       <div className={`fixed top-0 w-full z-50 h-16 px-3 md:px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
         
-        {/* LEFT SECTION */}
+        {/* LEFT */}
         <div className="flex items-center gap-3 z-20">
           <div className="md:hidden">
             {isAudioPlaying ? (
@@ -141,17 +150,15 @@ function App() {
               <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
             )}
           </div>
-
           <div className="hidden md:block">
              <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
           </div>
-
           <span className="hidden md:block font-bold text-xl tracking-tight" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
             Al-Qur'an
           </span>
         </div>
 
-        {/* CENTER SECTION: Dynamic Bar */}
+        {/* CENTER: Dynamic Bar */}
         <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
           <div className="pointer-events-auto flex items-start gap-1"> 
             
@@ -182,13 +189,14 @@ function App() {
                   chapters={chapters}
                   selectedChapter={selectedChapter}
                   onSelect={handleChapterSelect}
+                  onVerseJump={handleVerseJump} // Passed here
                 />
               )}
             </div>
           </div>
         </div>
 
-        {/* RIGHT SECTION: Settings */}
+        {/* RIGHT */}
         <div className="flex items-center z-20">
            <button 
              onClick={() => setIsSettingsOpen(true)}
@@ -224,6 +232,8 @@ function App() {
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
             selectedChapter={selectedChapter}
             onChapterNavigate={handleChapterSelect}
+            targetVerse={targetVerse} // Passed here
+            setTargetVerse={setTargetVerse} // Passed here
           />
         )}
       </main>
