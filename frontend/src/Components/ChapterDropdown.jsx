@@ -14,7 +14,7 @@ function ChapterDropdown({ chapters, selectedChapter, onSelect }) {
                 onSelect(chapter);
               }}
               className={`
-                w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 group text-left
+                w-full flex items-center justify-between p-1 py-2 rounded-xl transition-all duration-200 group text-left 
                 ${isSelected 
                   ? 'bg-emerald-900/20 text-emerald-400' 
                   : 'hover:bg-[rgb(37,38,40)] text-gray-300'
@@ -25,7 +25,7 @@ function ChapterDropdown({ chapters, selectedChapter, onSelect }) {
               <div className="flex items-center gap-4 min-w-0">
                 {/* Chapter Number Badge */}
                 <span className={`
-                  text-xs font-mono w-8 h-8 flex items-center justify-center rounded-full shrink-0
+                  text-[10px] font-mono w-7 h-8 flex items-center justify-center rounded-full shrink-0
                   ${isSelected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-800 text-gray-500'}
                 `}>
                   {chapter.id}

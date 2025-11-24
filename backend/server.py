@@ -1,6 +1,6 @@
 import os
-import time
-from fastapi import FastAPI, HTTPException, Query
+import re
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from dotenv import load_dotenv
@@ -26,55 +26,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-
-# Environments: Pre-production for testing
-TOKEN_URL = "https://prelive-oauth2.quran.foundation/oauth2/token"
-BASE_URL = "https://apis-prelive.quran.foundation/content/api/v4"
-
-# Token Cache
-token_store = {"access_token": None, "expires_at": 0}
-
-async def get_valid_token():
-    global token_store
-    if token_store["access_token"] and time.time() < token_store["expires_at"] - 60:
-        return token_store["access_token"]
-
-    async with httpx.AsyncClient() as client:
-        try:
-            payload = {"grant_type": "client_credentials", "scope": "content"}
-            auth = (CLIENT_ID, CLIENT_SECRET)
-            
-            response = await client.post(
-                TOKEN_URL,
-                auth=auth,
-                data=payload,
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            token_store["access_token"] = data["access_token"]
-            token_store["expires_at"] = time.time() + data.get("expires_in", 3600)
-            return token_store["access_token"]
-        except httpx.HTTPError as e:
-            print(f"Auth Error: {e}")
-            raise HTTPException(status_code=401, detail="Authentication failed")
+# Use Public Production URL (No Auth Required)
+BASE_URL = "https://api.quran.com/api/v4"
 
 async def make_request(endpoint: str, params: dict = {}):
-    token = await get_valid_token()
-    headers = {"x-auth-token": token, "x-client-id": CLIENT_ID}
-    
     async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{BASE_URL}{endpoint}", headers=headers, params=params)
+        # Request to public API - no auth headers needed
+        resp = await client.get(f"{BASE_URL}{endpoint}", params=params)
+        
         if resp.status_code != 200:
             raise HTTPException(status_code=resp.status_code, detail=resp.text)
+            
         return resp.json()
 
 @app.get("/api")
 async def api_root():
-    return {"status": "ok", "message": "Quran API Proxy Ready"}
+    return {"status": "ok", "message": "Quran API Proxy (Public) Ready"}
 
 @app.get("/api/chapters")
 async def get_chapters():
@@ -85,10 +52,23 @@ async def get_verses(chapter_id: int, page: int = 1):
     params = {
         "language": "en",
         "words": "false",
-        "translations": "20",   # Changed to 20 (Saheeh International)
-        "audio": "7",           # Added 7 (Mishari Rashid al-Afasy)
+        "translations": "20",   # Saheeh International
+        "audio": "7",           # Mishari Rashid al-Afasy
         "fields": "text_uthmani",
         "page": page,
         "per_page": 10
     }
-    return await make_request(f"/verses/by_chapter/{chapter_id}", params)
+    
+    # 1. Fetch raw data
+    data = await make_request(f"/verses/by_chapter/{chapter_id}", params)
+    
+    # 2. Clean Footnotes and Normalize Spaces
+    if "verses" in data:
+        for verse in data["verses"]:
+            if "translations" in verse:
+                for translation in verse["translations"]:
+                    original_text = translation["text"]
+                    text_no_tags = re.sub(r'<sup\b[^>]*>[\s\S]*?</sup>', '', original_text)
+                    clean_text = re.sub(r'\s+', ' ', text_no_tags).strip()
+                    translation["text"] = clean_text
+    return data

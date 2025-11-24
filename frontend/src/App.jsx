@@ -89,7 +89,6 @@ function App() {
   const mainBgClass = isLight ? 'bg-[#f5f5f0] text-[#2b2b2b]' : 'bg-[rgb(22,22,24)] text-[rgb(252,252,252)]';
   const headerBgClass = isLight ? 'bg-[#e7e5e4] border-stone-300' : 'bg-[rgb(46,47,48)] border-gray-700/50';
   
-  // Brown (Amber) Border Styles
   const stopBtnClass = isLight 
     ? 'bg-red-100 text-red-600 border-1 border-amber-800' 
     : 'bg-red-500/20 text-red-400 border-1 border-amber-700';
@@ -98,11 +97,11 @@ function App() {
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${mainBgClass}`}>
       
       {/* --- GLOBAL HEADER --- */}
-      <div className={`fixed top-0 w-full z-50 h-16 px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
+      {/* UPDATED: Reduced padding from px-4 to px-2 on mobile */}
+      <div className={`fixed top-0 w-full z-50 h-16 px-3 md:px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
         
-        {/* LEFT SECTION: Logo OR Mobile Stop Button */}
+        {/* LEFT SECTION */}
         <div className="flex items-center gap-3 z-20">
-          {/* Mobile: Toggle between Logo and Stop Button */}
           <div className="md:hidden">
             {isAudioPlaying ? (
               <button 
@@ -116,7 +115,6 @@ function App() {
             )}
           </div>
 
-          {/* Desktop: Always Logo */}
           <div className="hidden md:block">
              <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
           </div>
@@ -126,14 +124,10 @@ function App() {
           </span>
         </div>
 
-        {/* CENTER SECTION: Dynamic Bar + Desktop Stop Button */}
-        {/* UPDATED: Removed h-16/items-center, added pt-2.5 to anchor to top */}
+        {/* CENTER SECTION: Dynamic Bar */}
         <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
-          
-          {/* UPDATED: Changed items-center to items-start so bar grows down */}
           <div className="pointer-events-auto flex items-start gap-1"> 
             
-            {/* 1. DESKTOP STOP BUTTON (Left of Bar) */}
             <div className={`
                hidden md:flex items-center justify-center mr-0
                transition-all duration-300 ease-out transform
@@ -141,7 +135,7 @@ function App() {
                  ? 'opacity-100 translate-x-0 scale-100' 
                  : 'opacity-0 translate-x-4 scale-75 pointer-events-none'
                }
-               mt-1 // Align button with the bar header (approx 44px vs 36px)
+               mt-1 
             `}>
                <button 
                   onClick={() => stopAudioTrigger.current()} 
@@ -151,7 +145,6 @@ function App() {
                 </button>
             </div>
 
-            {/* 2. DYNAMIC BAR CONTAINER */}
             <div>
               {loadingChapters ? (
                 <div className="h-11 w-[300px] md:w-[500px] bg-[#1a1b1d] border border-white/5 rounded-2xl animate-pulse flex items-center justify-center">
@@ -200,7 +193,6 @@ function App() {
             theme={theme}
             showTranslation={showTranslation}
             fontSize={fontSize}
-            // --- AUDIO CONTROL PROPS ---
             onAudioStatusChange={setIsAudioPlaying}
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
           />

@@ -5,7 +5,7 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const barRef = useRef(null);
 
-  // 2. Click Outside Logic
+  // Click Outside Logic
   useEffect(() => {
     function handleClickOutside(event) {
       if (isDropdownOpen && barRef.current && !barRef.current.contains(event.target)) {
@@ -47,34 +47,47 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
       <div className={`
         relative bg-[#1a1b1d] border shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] overflow-hidden flex flex-col
         
-        /* --- WIDTH LOGIC MODIFICATION START --- */
+        /* --- WIDTH LOGIC UPDATED --- */
         ${isDropdownOpen 
-          ? 'w-[94vw] md:w-[500px] border-white/10 rounded-3xl max-h-[65vh]' // Open: Full width on mobile
-          : 'w-[calc(100vw-130px)] md:w-[500px] border-white/10 hover:border-white/20 rounded-[20px] md:rounded-[22px] max-h-11 md:max-h-11' // Closed: Fits between icons
+          ? 'w-[96vw] md:w-[500px] border-white/10 rounded-3xl max-h-[65vh]' // Open
+          // Closed: Increased width (100vw - 88px) allows bar to get closer to logo/settings
+          : 'w-[calc(100vw-116px)] md:w-[500px] border-white/10 hover:border-white/20 rounded-[20px] md:rounded-[22px] max-h-11 md:max-h-11' 
         }
-        /* --- WIDTH LOGIC MODIFICATION END --- */
       `}>
 
         {/* --- 1. HEADER (THE BAR) --- */}
         <div className="h-10 md:h-10.5 w-full flex items-center justify-between px-3 md:px-3 cursor-pointer shrink-0 relative z-20 bg-[#1a1b1d]">
           {selectedChapter ? (
-            <>
-              {/* Left: English Name - Truncate ensures it doesn't hit the Arabic text */}
+            <div className="flex items-center w-full gap-2 md:block">
+              
+              {/* --- LEFT: English Name --- 
+                  Mobile: flex-1 allows it to take all available space
+              */}
               <span className={`
                 text-gray-200 font-medium text-sm md:text-base z-10 truncate transition-all duration-300
-                ${isDropdownOpen ? 'max-w-[35%]' : 'max-w-[40%]'} 
-                md:max-w-none
+                flex-1 text-left md:block md:flex-none
+                ${isDropdownOpen ? 'md:max-w-[35%]' : 'md:max-w-[40%]'} 
               `}>
-                {selectedChapter.translated_name.name}
+                {selectedChapter.name_complex}
               </span>
 
-              {/* Center: Arabic Name */}
-              <span className="absolute sm:left-1/2 top-3/5 left-4/7 -translate-x-1/2 -translate-y-[55%] font-arabic text-lg md:text-xl text-emerald-500 pb-1 leading-none select-none pointer-events-none">
+{/* --- CENTER (Desktop)/ RIGHT (Mobile): Arabic Name --- 
+                  Mobile: Relative positioning (flows naturally after English).
+                  Desktop: Absolute positioning (Centered).
+              */}
+              <span className={`
+                 font-arabic text-xl text-emerald-500 pb-1 leading-none select-none pointer-events-none
+                 shrink-0 block mt-1 md:mt-0
+                 md:absolute md:top-3/5 md:left-1/2 md:-translate-x-1/2 md:-translate-y-[55%] md:text-xl
+              `}>
                 {selectedChapter.name_arabic}
               </span>
 
-              {/* Right: Verses Count Badge */}
-              <div className="z-10 flex items-center justify-center bg-[#2A2B2D] text-gray-400 rounded-full border border-white/5 h-7 min-w-6 md:min-w-7 px-2 md:px-3">
+              {/* --- RIGHT: Verses Count Badge --- */}
+              <div className={`
+                z-10 flex items-center justify-center bg-[#2A2B2D] text-gray-400 rounded-full border border-white/5 
+                h-6 min-w-6 px-1.5 ml-1 shrink-0 md:h-7 md:min-w-7 md:px-3 md:ml-0 md:float-right
+              `}>
                 <span className="text-[10px] font-mono md:hidden">
                   {selectedChapter.verses_count}
                 </span>
@@ -82,7 +95,7 @@ function DynamicBar({ chapters, selectedChapter, onSelect }) {
                   {selectedChapter.verses_count} Verses
                 </span>
               </div>
-            </>
+            </div>
           ) : (
             <span className="text-gray-400 text-sm mx-auto">Select a Surah</span>
           )}
