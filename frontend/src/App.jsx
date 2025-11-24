@@ -195,6 +195,7 @@ function App() {
             fontSize={fontSize}
             onAudioStatusChange={setIsAudioPlaying}
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
+            selectedChapter={selectedChapter}
           />
         )}
       </main>

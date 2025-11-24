@@ -15,7 +15,8 @@ function VerseList({
   fontSize,
   // New props from App
   onAudioStatusChange, 
-  registerStopHandler
+  registerStopHandler,
+  selectedChapter // <--- 1. Added Prop
 }) {
   // --- AUDIO STATE MANAGEMENT ---
   const [playingVerseKey, setPlayingVerseKey] = useState(null);
@@ -37,6 +38,13 @@ function VerseList({
         block: 'center' 
       });
     }
+  };
+
+  const shouldShowBismillah = () => {
+    if (!selectedChapter) return false;
+    if (page !== 1) return false;
+    if (selectedChapter.id === 1 || selectedChapter.id === 9) return false;
+    return true;
   };
 
   // --- GLOBAL STOP LOGIC (Called by Parent App) ---
@@ -190,6 +198,14 @@ function VerseList({
            </div>
         ) : (
           <>
+            {shouldShowBismillah() && (
+              <div className="flex flex-col items-center justify-center py-8 pb-8 select-none">
+                <div className={`font-arabic text-2xl md:text-4xl leading-relaxed opacity-90 transition-colors duration-300 ${isLight ? 'text-stone-700' : 'text-gray-300'}`}>
+                  بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+                </div>
+              </div>
+            )}
+
             <div className="space-y-6 mb-10">
               {verses.map((verse) => (
                 <div 
@@ -198,7 +214,6 @@ function VerseList({
                     className={`rounded-2xl border transition-colors duration-300 flex flex-col md:flex-row ${cardClass} ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-2 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}`}
                 >
                   
-                  {/* LEFT COLUMN */}
                   <div className={`
                     flex md:flex-col items-center justify-between md:justify-start md:items-center
                     p-4 md:py-6 md:px-5 md:w-20 md:border-r md:shrink-0 gap-4
@@ -218,7 +233,6 @@ function VerseList({
                     />
                   </div>
 
-                  {/* RIGHT COLUMN */}
                   <div className="flex-1 p-5 md:p-8 pt-2 md:pt-8">
                     <p 
                       className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
