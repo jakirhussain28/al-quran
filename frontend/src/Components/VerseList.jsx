@@ -1,57 +1,102 @@
-import { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import logoquran from '/src/assets/logo-quran.svg';
 import VerseAudioPlayer from './VerseAudioPlayer'; 
+import ChapterNavigation from './ChapterNavigation';
+import { Loader2 } from 'lucide-react';
 
 function VerseList({ 
   verses, 
   loading, 
   page, 
   setPage, 
-  paginationMeta, 
+  totalPages,
   scrollRef,
   theme,           
   showTranslation, 
   fontSize,
-  // New props from App
   onAudioStatusChange, 
   registerStopHandler,
-  selectedChapter // <--- 1. Added Prop
+  selectedChapter,
+  onChapterNavigate
 }) {
   // --- AUDIO STATE MANAGEMENT ---
   const [playingVerseKey, setPlayingVerseKey] = useState(null);
   const [audioLoading, setAudioLoading] = useState(false);
+  
+  // Refs
   const audioRef = useRef(null);
-  
-  // Needed to check if we can resume the current audio
   const currentAudioKeyRef = useRef(null);
-  
-  // --- SCROLL TRACKING REFS ---
   const verseRefs = useRef({}); 
+  const loadMoreRef = useRef(null);
+  
+  // CRITICAL: Keep a ref of verses so the audio 'onended' callback 
+  // can see the most recent list (including appended verses)
+  const versesRef = useRef(verses);
+  useEffect(() => {
+    versesRef.current = verses;
+  }, [verses]);
 
-  // Helper to scroll to a specific verse
+  // --- SCROLL HELPERS ---
   const scrollToVerse = (verseKey) => {
     const element = verseRefs.current[verseKey];
     if (element) {
-      element.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
-      });
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const scrollToTop = () => {
+    if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const shouldShowBismillah = () => {
     if (!selectedChapter) return false;
-    if (page !== 1) return false;
+    // Only show at absolute top (start of list)
     if (selectedChapter.id === 1 || selectedChapter.id === 9) return false;
     return true;
   };
 
-  // --- GLOBAL STOP LOGIC (Called by Parent App) ---
+  // --- INFINITE SCROLL OBSERVER ---
+  const handleObserver = useCallback((entries) => {
+    const target = entries[0];
+    
+    // FIX: Race Condition Prevention
+    // The API returns 10 verses per page. We verify that we have enough verses 
+    // for the CURRENT page before we allow requesting the NEXT page.
+    // e.g. If page is 1, we need 10 verses. If verses.length is 10, we can go to page 2.
+    // If page is 2, we need 20 verses. If verses.length is 10, we must WAIT.
+    const expectedCount = page * 10;
+    const hasDataCaughtUp = verses.length >= expectedCount;
+
+    // Only load more if:
+    // 1. Trigger is visible (isIntersecting)
+    // 2. We are not currently loading (loading)
+    // 3. We haven't reached the last page (page < totalPages)
+    // 4. We have received the data for the current page (hasDataCaughtUp)
+    if (target.isIntersecting && !loading && page < totalPages && hasDataCaughtUp) {
+      setPage((prev) => prev + 1);
+    }
+  }, [loading, page, totalPages, setPage, verses.length]);
+
+  useEffect(() => {
+    const option = {
+      root: null, // viewport
+      rootMargin: "100px", // Trigger slightly before bottom
+      threshold: 0
+    };
+    const observer = new IntersectionObserver(handleObserver, option);
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    return () => {
+      if (loadMoreRef.current) observer.unobserve(loadMoreRef.current);
+    }
+  }, [handleObserver]);
+
+
+  // --- GLOBAL STOP LOGIC ---
   useEffect(() => {
     if (registerStopHandler) {
       registerStopHandler(() => {
-        // Full Stop: Pause, Reset Time, clear State
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
@@ -63,20 +108,19 @@ function VerseList({
     }
   }, [registerStopHandler, onAudioStatusChange]);
 
-  // --- HANDLE PLAY / PAUSE (With Resume Support) ---
+  // --- HANDLE PLAY / PAUSE ---
   const handlePlayPause = (verse) => {
     const verseKey = verse.verse_key;
     
-    // 1. PAUSE LOGIC (Resume later)
+    // PAUSE
     if (playingVerseKey === verseKey) {
-      // Just pause, DO NOT reset currentTime
       audioRef.current?.pause();
       setPlayingVerseKey(null);
       if (onAudioStatusChange) onAudioStatusChange(false);
       return;
     }
 
-    // 2. DETERMINE AUDIO URL
+    // PLAY
     const relativeUrl = verse.audio?.url;
     if (!relativeUrl) return;
     
@@ -86,11 +130,10 @@ function VerseList({
 
     setAudioLoading(true);
     
-    // 3. CHECK RESUME VS NEW PLAY
+    // Check Resume
     const isResuming = currentAudioKeyRef.current === verseKey && audioRef.current;
 
     if (isResuming) {
-        // --- RESUME EXISTING ---
         audioRef.current.play()
             .then(() => {
                 setAudioLoading(false);
@@ -102,9 +145,7 @@ function VerseList({
                 setAudioLoading(false);
             });
     } else {
-        // --- START NEW AUDIO ---
-        
-        // Stop previous if exists
+        // New Track
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -121,38 +162,39 @@ function VerseList({
                 if (onAudioStatusChange) onAudioStatusChange(true);
             })
             .catch(err => {
-                console.error("Audio playback error:", err);
+                console.error("Audio error:", err);
                 setAudioLoading(false);
                 setPlayingVerseKey(null);
                 if (onAudioStatusChange) onAudioStatusChange(false);
             });
 
-        // AUTO-PLAY NEXT LOGIC
+        // CONTINUOUS PLAY LOGIC
         newAudio.onended = () => {
-            const currentIndex = verses.findIndex((v) => v.verse_key === verse.verse_key);
-            if (currentIndex !== -1 && currentIndex < verses.length - 1) {
-                const nextVerse = verses[currentIndex + 1];
+            // Use ref to get LATEST verses (including newly loaded ones)
+            const currentList = versesRef.current;
+            const currentIndex = currentList.findIndex((v) => v.verse_key === verse.verse_key);
+            
+            if (currentIndex !== -1 && currentIndex < currentList.length - 1) {
+                const nextVerse = currentList[currentIndex + 1];
                 handlePlayPause(nextVerse); 
             } else {
+                // End of list (or waiting for load)
                 setPlayingVerseKey(null);
-                currentAudioKeyRef.current = null; // Reset on list end
+                currentAudioKeyRef.current = null; 
                 if (onAudioStatusChange) onAudioStatusChange(false);
             }
         };
     }
-    
-    // Always scroll to the active verse
     scrollToVerse(verseKey);
   };
 
-  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) audioRef.current.pause();
     };
   }, []);
 
-  // --- STYLING MAPS ---
+  // --- STYLING ---
   const arabicSizeMap = {
     1: 'text-xl leading-[2.0]',
     2: 'text-2xl leading-[2.2]',
@@ -160,7 +202,6 @@ function VerseList({
     4: 'text-4xl leading-[2.8]',
     5: 'text-5xl leading-[3.0]',
   };
-
   const translationSizeMap = {
     1: 'text-sm',
     2: 'text-base',
@@ -168,21 +209,13 @@ function VerseList({
     4: 'text-xl',
     5: 'text-2xl',
   };
-
   const isLight = theme === 'light';
   const cardClass = isLight 
     ? 'bg-white border-stone-200 text-stone-800 shadow-sm' 
     : 'bg-[#1a1b1d] border-white/5 text-gray-300';
-  
   const verseKeyBg = isLight
     ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200'
     : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-
-  const controlsClass = isLight
-    ? 'bg-white border-stone-200 text-stone-600'
-    : 'bg-[#1a1b1d] border-white/5 text-gray-400';
-
-  const btnHoverClass = 'hover:bg-emerald-500/10 hover:text-emerald-500';
 
   return (
     <div 
@@ -190,95 +223,85 @@ function VerseList({
       className="flex-1 overflow-y-auto p-4 lg:p-6 scroll-smooth custom-scrollbar"
     >
       <div className="max-w-6xl mx-auto pb-24">
-        {loading ? (
-           <div className="flex justify-center py-20">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-200' : 'bg-gray-800'}`}>
-                <img src={logoquran} className="w-8 h-8 opacity-50" />
-              </div>
-           </div>
-        ) : (
-          <>
-            {shouldShowBismillah() && (
-              <div className="flex flex-col items-center justify-center py-8 pb-8 select-none">
-                <div className={`font-arabic text-2xl md:text-4xl leading-relaxed opacity-90 transition-colors duration-300 ${isLight ? 'text-stone-700' : 'text-gray-300'}`}>
-                  بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-6 mb-10">
-              {verses.map((verse) => (
-                <div 
-                    key={verse.id}
-                    ref={(el) => (verseRefs.current[verse.verse_key] = el)} 
-                    className={`rounded-2xl border transition-colors duration-300 flex flex-col md:flex-row ${cardClass} ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-2 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}`}
-                >
-                  
-                  <div className={`
-                    flex md:flex-col items-center justify-between md:justify-start md:items-center
-                    p-4 md:py-6 md:px-5 md:w-20 md:border-r md:shrink-0 gap-4
-                    ${isLight ? 'border-stone-100 ' : 'border-white/5 '}
-                  `}>
-                    <span className={`text-xs font-mono px-3 py-1 rounded-lg border font-medium ${verseKeyBg}`}>
-                      {verse.verse_key}
-                    </span>
-
-                    <VerseAudioPlayer 
-                        audioUrl={verse.audio?.url} 
-                        verseKey={verse.verse_key}
-                        theme={theme}
-                        isPlaying={playingVerseKey === verse.verse_key}
-                        isLoading={playingVerseKey === verse.verse_key && audioLoading}
-                        onToggle={() => handlePlayPause(verse)}
-                    />
-                  </div>
-
-                  <div className="flex-1 p-5 md:p-8 pt-2 md:pt-8">
-                    <p 
-                      className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
-                      dir="rtl"
-                    >
-                      {verse.text_uthmani} 
-                    </p>
-
-                    {showTranslation && (
-                      <p 
-                        className={`leading-relaxed transition-all duration-200 opacity-90 ${translationSizeMap[fontSize]} ${isLight ? 'text-stone-600' : 'text-gray-400'}`}
-                      >
-                        {verse.translations?.[0]?.text ? (
-                          <span dangerouslySetInnerHTML={{__html: verse.translations[0].text}} />
-                        ) : "Translation unavailable"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
+        
+        {/* BISMILLAH (Start of Surah only) */}
+        {shouldShowBismillah() && (
+          <div className="flex flex-col items-center justify-center py-8 pb-12 select-none">
+            <div className={`font-arabic text-2xl md:text-4xl leading-relaxed opacity-90 transition-colors duration-300 ${isLight ? 'text-stone-700' : 'text-gray-300'}`}>
+              بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
             </div>
-
-            {/* PAGINATION */}
-            <div className={`flex items-center justify-between p-2 rounded-2xl border transition-colors ${controlsClass}`}>
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-colors ${btnHoverClass}`}
-              >
-                <ChevronLeft size={18} /> Previous
-              </button>
-
-              <span className="font-mono text-sm opacity-70">
-                Page {page} <span className="opacity-30">/ {paginationMeta?.total_pages || '?'}</span>
-              </span>
-
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={paginationMeta && page >= paginationMeta.total_pages}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-colors ${btnHoverClass}`}
-              >
-                Next <ChevronRight size={18} />
-              </button>
-            </div>
-          </>
+          </div>
         )}
+
+        {/* VERSE LIST */}
+        <div className="space-y-6 mb-4">
+          {verses.map((verse) => (
+            <div 
+                key={verse.verse_key} // Use verse_key as ID is unique globally but key is safer
+                ref={(el) => (verseRefs.current[verse.verse_key] = el)} 
+                className={`rounded-2xl border transition-colors duration-300 flex flex-col md:flex-row ${cardClass} ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-2 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}`}
+            >
+              <div className={`
+                flex md:flex-col items-center justify-between md:justify-start md:items-center
+                p-4 md:py-6 md:px-5 md:w-20 md:border-r md:shrink-0 gap-4
+                ${isLight ? 'border-stone-100 ' : 'border-white/5 '}
+              `}>
+                <span className={`text-xs font-mono px-3 py-1 rounded-lg border font-medium ${verseKeyBg}`}>
+                  {verse.verse_key}
+                </span>
+
+                <VerseAudioPlayer 
+                    audioUrl={verse.audio?.url} 
+                    verseKey={verse.verse_key}
+                    theme={theme}
+                    isPlaying={playingVerseKey === verse.verse_key}
+                    isLoading={playingVerseKey === verse.verse_key && audioLoading}
+                    onToggle={() => handlePlayPause(verse)}
+                />
+              </div>
+
+              <div className="flex-1 p-5 md:p-8 pt-2 md:pt-8">
+                <p 
+                  className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
+                  dir="rtl"
+                >
+                  {verse.text_uthmani} 
+                </p>
+
+                {showTranslation && (
+                  <p 
+                    className={`leading-relaxed transition-all duration-200 opacity-90 ${translationSizeMap[fontSize]} ${isLight ? 'text-stone-600' : 'text-gray-400'}`}
+                  >
+                    {verse.translations?.[0]?.text ? (
+                      <span dangerouslySetInnerHTML={{__html: verse.translations[0].text}} />
+                    ) : "Translation unavailable"}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* LOADING INDICATOR / TRIGGER AREA */}
+        <div ref={loadMoreRef} className="h-20 flex items-center justify-center w-full">
+            {loading && (
+                 <div className={`flex items-center gap-2 text-sm ${isLight ? 'text-stone-400' : 'text-gray-600'}`}>
+                    <Loader2 className="animate-spin" size={20} />
+                    <span>Loading verses...</span>
+                 </div>
+            )}
+        </div>
+
+        {/* CHAPTER NAVIGATION FOOTER (Only when end is reached) */}
+        {!loading && page >= totalPages && (
+          <ChapterNavigation 
+            selectedChapter={selectedChapter} 
+            onNavigate={onChapterNavigate}
+            onScrollToTop={scrollToTop}
+            theme={theme}
+          />
+        )}
+
       </div>
     </div>
   );

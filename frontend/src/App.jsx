@@ -12,8 +12,8 @@ function App() {
   const [chapters, setChapters] = useState([]);
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [verses, setVerses] = useState([]);
-  const [paginationMeta, setPaginationMeta] = useState(null);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1); 
 
   // --- UI STATES ---
   const [loadingChapters, setLoadingChapters] = useState(true);
@@ -30,7 +30,6 @@ function App() {
   const [fontSize, setFontSize] = useState(3); 
   
   // Refs
-  const verseCache = useRef({});
   const contentTopRef = useRef(null);
 
   // --- FETCH CHAPTERS ---
@@ -48,39 +47,68 @@ function App() {
       });
   }, []);
 
-  // --- FETCH VERSES ---
+  // --- FETCH VERSES (Appends or Resets) ---
   useEffect(() => {
     if (!selectedChapter) return;
-    if (contentTopRef.current) contentTopRef.current.scrollTop = 0;
 
-    const chapterId = selectedChapter.id;
-    const cacheKey = `${chapterId}-${page}`;
+    // AbortController to cancel stale requests if chapter/page changes quickly
+    const controller = new AbortController();
+    const signal = controller.signal;
 
-    if (verseCache.current[cacheKey]) {
-      setVerses(verseCache.current[cacheKey].verses);
-      setPaginationMeta(verseCache.current[cacheKey].meta);
-      setLoadingVerses(false);
-      return;
+    // Only scroll to top if it's the FIRST page load of a chapter
+    if (page === 1 && contentTopRef.current) {
+      contentTopRef.current.scrollTop = 0;
     }
 
     setLoadingVerses(true);
-    fetch(`${API_URL}/api/chapters/${chapterId}/verses?page=${page}`)
+    
+    fetch(`${API_URL}/api/chapters/${selectedChapter.id}/verses?page=${page}`, { signal })
       .then(res => res.json())
       .then(data => {
+        if (signal.aborted) return;
+
         const fetchedVerses = data.verses || [];
         const meta = data.pagination || {};
-        verseCache.current[cacheKey] = { verses: fetchedVerses, meta: meta };
-        setVerses(fetchedVerses);
-        setPaginationMeta(meta);
+        
+        setTotalPages(meta.total_pages || 1);
+
+        if (page === 1) {
+          // New Chapter: Reset list
+          setVerses(fetchedVerses);
+        } else {
+          // Infinite Scroll: Append list
+          setVerses(prev => {
+             // Optional: Basic deduplication just in case
+             const existingIds = new Set(prev.map(v => v.id));
+             const uniqueNewVerses = fetchedVerses.filter(v => !existingIds.has(v.id));
+             return [...prev, ...uniqueNewVerses];
+          });
+        }
+        
         setLoadingVerses(false);
       })
-      .catch(err => setLoadingVerses(false));
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+            console.error(err);
+            setLoadingVerses(false);
+        }
+      });
+
+      return () => controller.abort();
   }, [selectedChapter, page]);
 
   // --- HANDLERS ---
   const handleChapterSelect = (chapter) => {
-    setSelectedChapter(chapter);
-    setPage(1);
+    const chapterObj = typeof chapter === 'number' 
+      ? chapters.find(c => c.id === chapter) 
+      : chapter;
+
+    if (chapterObj) {
+        stopAudioTrigger.current();
+        setVerses([]); 
+        setPage(1);
+        setSelectedChapter(chapterObj);
+    }
   };
 
   // --- THEME COLORS ---
@@ -97,7 +125,6 @@ function App() {
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${mainBgClass}`}>
       
       {/* --- GLOBAL HEADER --- */}
-      {/* UPDATED: Reduced padding from px-4 to px-2 on mobile */}
       <div className={`fixed top-0 w-full z-50 h-16 px-3 md:px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
         
         {/* LEFT SECTION */}
@@ -188,7 +215,7 @@ function App() {
             loading={loadingVerses}
             page={page}
             setPage={setPage}
-            paginationMeta={paginationMeta}
+            totalPages={totalPages} 
             scrollRef={contentTopRef}
             theme={theme}
             showTranslation={showTranslation}
@@ -196,6 +223,7 @@ function App() {
             onAudioStatusChange={setIsAudioPlaying}
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
             selectedChapter={selectedChapter}
+            onChapterNavigate={handleChapterSelect}
           />
         )}
       </main>
