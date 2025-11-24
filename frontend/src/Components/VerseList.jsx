@@ -41,14 +41,9 @@ function VerseList({
     if (element) {
       // Timeout ensures layout is stable
       setTimeout(() => {
-        // CHANGED: 'block: start' aligns the element to the top of the viewport
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // Add highlight effect
-        element.classList.add('ring-1', 'ring-emerald-700');
-        setTimeout(() => {
-           element.classList.remove('ring-1', 'ring-emerald-700');
-        }, 1000);
+        // We don't need the temporary highlight logic here anymore 
+        // since the active audio state will handle the persistent highlight
       }, 100);
     }
   };
@@ -63,13 +58,11 @@ function VerseList({
   useEffect(() => {
     if (targetVerse && selectedChapter) {
         const verseKey = `${selectedChapter.id}:${targetVerse.id}`;
-        
-        // Check if verse is already in DOM/State
         const verseExists = verses.find(v => v.verse_key === verseKey);
 
         if (verseExists) {
             scrollToVerse(verseKey);
-            setTargetVerse(null); // Reset target once found and scrolled
+            setTargetVerse(null); 
         }
     }
   }, [targetVerse, verses, selectedChapter, setTargetVerse]);
@@ -212,9 +205,12 @@ function VerseList({
     5: 'text-2xl',
   };
   const isLight = theme === 'light';
+  
+  // Default card styles
   const cardClass = isLight 
     ? 'bg-white border-stone-200 text-stone-800 shadow-sm' 
     : 'bg-[#1a1b1d] border-white/5 text-gray-300';
+  
   const verseKeyBg = isLight
     ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200'
     : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
@@ -234,58 +230,69 @@ function VerseList({
           </div>
         )}
 
-        <div className="space-y-6 mb-4">
-          {verses.map((verse) => (
-            <div 
-                key={verse.verse_key} 
-                ref={(el) => (verseRefs.current[verse.verse_key] = el)} 
-                // UPDATED CLASS: Added scroll-mt-20 md:scroll-mt-24 for header offset
-                className={`
-                  scroll-mt-10 md:scroll-mt-20
-                  rounded-2xl border transition-all duration-300 flex flex-col md:flex-row 
-                  ${cardClass} 
-                  ${playingVerseKey === verse.verse_key ? (isLight ? 'ring-1 ring-emerald-500/50' : 'ring-1 ring-emerald-500/30') : ''}
-                `}
-            >
-              <div className={`
-                flex md:flex-col items-center justify-between md:justify-start md:items-center
-                p-4 md:py-6 md:px-5 md:w-20 md:border-r md:shrink-0 gap-4
-                ${isLight ? 'border-stone-100 ' : 'border-white/5 '}
-              `}>
-                <span className={`text-xs font-mono px-3 py-1 rounded-lg border font-medium ${verseKeyBg}`}>
-                  {verse.verse_key}
-                </span>
+        <div className="space-y-4 mb-4">
+          {verses.map((verse) => {
+            const isPlaying = playingVerseKey === verse.verse_key;
+            
+            // Determine active styles based on theme
+            // Stronger ring (ring-2) + slight background tint for better UX
+            const activeStyles = isPlaying
+              ? isLight
+                ? 'ring-1 ring-emerald-500 bg-emerald-50/40'
+                : 'ring-1 ring-emerald-500/80 bg-emerald-900/10'
+              : '';
 
-                <VerseAudioPlayer 
-                    audioUrl={verse.audio?.url} 
-                    verseKey={verse.verse_key}
-                    theme={theme}
-                    isPlaying={playingVerseKey === verse.verse_key}
-                    isLoading={playingVerseKey === verse.verse_key && audioLoading}
-                    onToggle={() => handlePlayPause(verse)}
-                />
-              </div>
+            return (
+              <div 
+                  key={verse.verse_key} 
+                  ref={(el) => (verseRefs.current[verse.verse_key] = el)} 
+                  className={`
+                    scroll-mt-20 md:scroll-mt-20
+                    rounded-2xl border transition-all duration-300 flex flex-col md:flex-row 
+                    ${cardClass} 
+                    ${activeStyles}
+                  `}
+              >
+                <div className={`
+                  flex md:flex-col items-center justify-between md:justify-start md:items-center
+                  p-4 md:py-6 md:px-5 md:w-20 md:border-r md:shrink-0 gap-4
+                  ${isLight ? 'border-stone-100 ' : 'border-white/5 '}
+                `}>
+                  <span className={`text-xs font-mono px-3 py-1 rounded-lg border font-medium ${verseKeyBg}`}>
+                    {verse.verse_key}
+                  </span>
 
-              <div className="flex-1 p-5 md:p-8 pt-2 md:pt-8">
-                <p 
-                  className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
-                  dir="rtl"
-                >
-                  {verse.text_uthmani} 
-                </p>
+                  <VerseAudioPlayer 
+                      audioUrl={verse.audio?.url} 
+                      verseKey={verse.verse_key}
+                      theme={theme}
+                      isPlaying={isPlaying}
+                      isLoading={isPlaying && audioLoading}
+                      onToggle={() => handlePlayPause(verse)}
+                  />
+                </div>
 
-                {showTranslation && (
+                <div className="flex-1 p-5 md:p-8 pt-2 md:pt-8">
                   <p 
-                    className={`leading-relaxed transition-all duration-200 opacity-90 ${translationSizeMap[fontSize]} ${isLight ? 'text-stone-600' : 'text-gray-400'}`}
+                    className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
+                    dir="rtl"
                   >
-                    {verse.translations?.[0]?.text ? (
-                      <span dangerouslySetInnerHTML={{__html: verse.translations[0].text}} />
-                    ) : "Translation unavailable"}
+                    {verse.text_uthmani} 
                   </p>
-                )}
+
+                  {showTranslation && (
+                    <p 
+                      className={`leading-relaxed transition-all duration-200 opacity-90 ${translationSizeMap[fontSize]} ${isLight ? 'text-stone-600' : 'text-gray-400'}`}
+                    >
+                      {verse.translations?.[0]?.text ? (
+                        <span dangerouslySetInnerHTML={{__html: verse.translations[0].text}} />
+                      ) : "Translation unavailable"}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div ref={loadMoreRef} className="h-20 flex items-center justify-center w-full">
