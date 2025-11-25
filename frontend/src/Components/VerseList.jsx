@@ -3,6 +3,12 @@ import logoquran from '/src/assets/logo-quran.svg';
 import VerseAudioPlayer from './VerseAudioPlayer'; 
 import ChapterNavigation from './ChapterNavigation';
 
+// --- HELPER: Convert English Digits to Arabic ---
+const toArabicNumerals = (num) => {
+  const id = String(num);
+  return id.replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
+};
+
 function VerseList({ 
   verses, 
   loading, 
@@ -39,11 +45,8 @@ function VerseList({
   const scrollToVerse = (verseKey) => {
     const element = verseRefs.current[verseKey];
     if (element) {
-      // Timeout ensures layout is stable
       setTimeout(() => {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // We don't need the temporary highlight logic here anymore 
-        // since the active audio state will handle the persistent highlight
       }, 100);
     }
   };
@@ -173,7 +176,6 @@ function VerseList({
             }
         };
     }
-    // Auto-scroll when play starts
     scrollToVerse(verseKey);
   };
 
@@ -204,9 +206,19 @@ function VerseList({
     4: 'text-xl',
     5: 'text-2xl',
   };
+
+  // --- NEW: Marker Size Mapping (Replacing 'em') ---
+  // Maps fontSize (1-5) to explicit Tailwind height, width, and font classes
+  const markerStyleMap = {
+    1: 'h-5 min-w-4 text-sm border-1',     // Smallest
+    2: 'h-6 min-w-6 text-base border-1', // Medium
+    3: 'h-8 min-w-8 text-lg border-1',   // Large
+    4: 'h-9 min-w-10 text-xl border-1', // XL
+    5: 'h-10 min-w-12 text-2xl border-1' // 2XL
+  };
+
   const isLight = theme === 'light';
   
-  // Default card styles
   const cardClass = isLight 
     ? 'bg-white border-stone-200 text-stone-800 shadow-sm' 
     : 'bg-[#1a1b1d] border-white/5 text-gray-300';
@@ -214,6 +226,8 @@ function VerseList({
   const verseKeyBg = isLight
     ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200'
     : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+
+  const ayahMarkerColor = isLight ? 'text-emerald-600' : 'text-emerald-500';
 
   return (
     <div 
@@ -233,14 +247,14 @@ function VerseList({
         <div className="space-y-4 mb-4">
           {verses.map((verse) => {
             const isPlaying = playingVerseKey === verse.verse_key;
-            
-            // Determine active styles based on theme
-            // Stronger ring (ring-2) + slight background tint for better UX
             const activeStyles = isPlaying
               ? isLight
                 ? 'ring-1 ring-emerald-500 bg-emerald-50/40'
                 : 'ring-1 ring-emerald-500/80 bg-emerald-900/10'
               : '';
+
+            const verseNumber = verse.verse_key.split(':')[1];
+            const arabicNumber = toArabicNumerals(verseNumber);
 
             return (
               <div 
@@ -278,6 +292,21 @@ function VerseList({
                     dir="rtl"
                   >
                     {verse.text_uthmani} 
+                    
+                    {/* --- UPDATED: Using Explicit Tailwind Classes --- */}
+                    <span 
+                      className={`
+                        inline-flex items-center justify-center 
+                        px-1 mr-2 rounded-lg border-current
+                        font-bold leading-none
+                        align-middle select-none whitespace-nowrap
+                        ${ayahMarkerColor}
+                        ${markerStyleMap[fontSize]}
+                      `}
+                    >
+                       {arabicNumber}
+                    </span>
+                    {/* ----------------------------------------------- */}
                   </p>
 
                   {showTranslation && (
