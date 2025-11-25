@@ -26,11 +26,39 @@ function App() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const stopAudioTrigger = useRef(() => {}); 
 
-  // --- SETTINGS STATES ---
+  // --- SETTINGS STATES (WITH PERSISTENCE) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState('night'); 
-  const [showTranslation, setShowTranslation] = useState(true);
-  const [fontSize, setFontSize] = useState(3); 
+
+  // 1. Theme: Default to 'light' if nothing saved
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('app-theme') || 'light';
+  });
+
+  // 2. Translation: Default to true. We must check for explicit "false" string.
+  const [showTranslation, setShowTranslation] = useState(() => {
+    const saved = localStorage.getItem('app-showTranslation');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  // 3. Font Size: Default to 3. Parse integer from storage.
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem('app-fontSize');
+    return saved ? parseInt(saved, 10) : 3;
+  });
+
+  // --- PERSISTENCE EFFECTS ---
+  // These run every time the specific state changes to save it.
+  useEffect(() => {
+    localStorage.setItem('app-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('app-showTranslation', showTranslation);
+  }, [showTranslation]);
+
+  useEffect(() => {
+    localStorage.setItem('app-fontSize', fontSize);
+  }, [fontSize]);
   
   // Refs
   const contentTopRef = useRef(null);
@@ -118,7 +146,6 @@ function App() {
     setTargetVerse({ id: verseNumber });
 
     // 3. If we are on a lower page, force load the required page
-    // (This appends it to the list, creating a gap if necessary, which is fine for now)
     if (page < requiredPage) {
         setPage(requiredPage);
     }
@@ -189,7 +216,7 @@ function App() {
                   chapters={chapters}
                   selectedChapter={selectedChapter}
                   onSelect={handleChapterSelect}
-                  onVerseJump={handleVerseJump} // Passed here
+                  onVerseJump={handleVerseJump} 
                 />
               )}
             </div>
@@ -232,8 +259,8 @@ function App() {
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
             selectedChapter={selectedChapter}
             onChapterNavigate={handleChapterSelect}
-            targetVerse={targetVerse} // Passed here
-            setTargetVerse={setTargetVerse} // Passed here
+            targetVerse={targetVerse} 
+            setTargetVerse={setTargetVerse} 
           />
         )}
       </main>
