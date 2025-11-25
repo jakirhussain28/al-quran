@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Square } from 'lucide-react'; 
+import { Settings, Square } from 'lucide-react';
 import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
@@ -13,18 +13,18 @@ function App() {
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1); 
+  const [totalPages, setTotalPages] = useState(1);
 
   // --- NEW: JUMP TARGET STATE ---
-  const [targetVerse, setTargetVerse] = useState(null); 
+  const [targetVerse, setTargetVerse] = useState(null);
 
   // --- UI STATES ---
   const [loadingChapters, setLoadingChapters] = useState(true);
   const [loadingVerses, setLoadingVerses] = useState(false);
-  
+
   // --- AUDIO STATE ---
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const stopAudioTrigger = useRef(() => {}); 
+  const stopAudioTrigger = useRef(() => { });
 
   // --- SETTINGS STATES (WITH PERSISTENCE) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -59,7 +59,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem('app-fontSize', fontSize);
   }, [fontSize]);
-  
+
   // Refs
   const contentTopRef = useRef(null);
 
@@ -90,7 +90,7 @@ function App() {
     }
 
     setLoadingVerses(true);
-    
+
     fetch(`${API_URL}/api/chapters/${selectedChapter.id}/verses?page=${page}`, { signal })
       .then(res => res.json())
       .then(data => {
@@ -98,7 +98,7 @@ function App() {
 
         const fetchedVerses = data.verses || [];
         const meta = data.pagination || {};
-        
+
         setTotalPages(meta.total_pages || 1);
 
         if (page === 1) {
@@ -106,48 +106,51 @@ function App() {
         } else {
           // Infinite Scroll Append
           setVerses(prev => {
-             const existingIds = new Set(prev.map(v => v.id));
-             const uniqueNewVerses = fetchedVerses.filter(v => !existingIds.has(v.id));
-             return [...prev, ...uniqueNewVerses];
+            const existingIds = new Set(prev.map(v => v.id));
+            const uniqueNewVerses = fetchedVerses.filter(v => !existingIds.has(v.id));
+            return [...prev, ...uniqueNewVerses];
           });
         }
         setLoadingVerses(false);
       })
       .catch(err => {
         if (err.name !== 'AbortError') {
-            console.error(err);
-            setLoadingVerses(false);
+          console.error(err);
+          setLoadingVerses(false);
         }
       });
 
-      return () => controller.abort();
+    return () => controller.abort();
   }, [selectedChapter, page]);
 
   // --- HANDLERS ---
   const handleChapterSelect = (chapter) => {
-    const chapterObj = typeof chapter === 'number' 
-      ? chapters.find(c => c.id === chapter) 
+    const chapterObj = typeof chapter === 'number'
+      ? chapters.find(c => c.id === chapter)
       : chapter;
 
     if (chapterObj) {
-        stopAudioTrigger.current();
-        setVerses([]); 
-        setPage(1);
-        setSelectedChapter(chapterObj);
-        setTargetVerse(null);
+      if (selectedChapter && selectedChapter.id === chapterObj.id) {
+        return;
+      }
+      stopAudioTrigger.current();
+      setVerses([]);
+      setPage(1);
+      setSelectedChapter(chapterObj);
+      setTargetVerse(null);
     }
   };
 
   const handleVerseJump = (verseNumber) => {
     // 1. Calculate Page (10 verses per page)
     const requiredPage = Math.ceil(verseNumber / 10);
-    
+
     // 2. Set target for VerseList to scroll to
     setTargetVerse({ id: verseNumber });
 
     // 3. If we are on a lower page, force load the required page
     if (page < requiredPage) {
-        setPage(requiredPage);
+      setPage(requiredPage);
     }
   };
 
@@ -159,16 +162,16 @@ function App() {
 
   return (
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${mainBgClass}`}>
-      
+
       {/* --- GLOBAL HEADER --- */}
       <div className={`fixed top-0 w-full z-50 h-16 px-3 md:px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
-        
+
         {/* LEFT */}
         <div className="flex items-center gap-3 z-20">
           <div className="md:hidden">
             {isAudioPlaying ? (
-              <button 
-                onClick={() => stopAudioTrigger.current()} 
+              <button
+                onClick={() => stopAudioTrigger.current()}
                 className={`w-9 h-9 rounded-full flex items-center justify-center animate-in fade-in zoom-in duration-200 ${stopBtnClass}`}
               >
                 <Square size={16} fill="currentColor" />
@@ -178,7 +181,7 @@ function App() {
             )}
           </div>
           <div className="hidden md:block">
-             <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+            <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
           </div>
           <span className="hidden md:block font-bold text-xl tracking-tight" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
             Al-Qur'an
@@ -187,23 +190,23 @@ function App() {
 
         {/* CENTER: Dynamic Bar */}
         <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
-          <div className="pointer-events-auto flex items-start gap-1"> 
-            
+          <div className="pointer-events-auto flex items-start gap-1">
+
             <div className={`
                hidden md:flex items-center justify-center mr-0
                transition-all duration-300 ease-out transform
-               ${isAudioPlaying 
-                 ? 'opacity-100 translate-x-0 scale-100' 
-                 : 'opacity-0 translate-x-4 scale-75 pointer-events-none'
-               }
+               ${isAudioPlaying
+                ? 'opacity-100 translate-x-0 scale-100'
+                : 'opacity-0 translate-x-4 scale-75 pointer-events-none'
+              }
                mt-1 
             `}>
-               <button 
-                  onClick={() => stopAudioTrigger.current()} 
-                  className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform ${stopBtnClass}`}
-                >
-                  <Square size={16} fill="currentColor" />
-                </button>
+              <button
+                onClick={() => stopAudioTrigger.current()}
+                className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform ${stopBtnClass}`}
+              >
+                <Square size={16} fill="currentColor" />
+              </button>
             </div>
 
             <div>
@@ -212,11 +215,11 @@ function App() {
                   <div className="h-2 w-24 bg-gray-700 rounded-full opacity-50"></div>
                 </div>
               ) : (
-                <DynamicBar 
+                <DynamicBar
                   chapters={chapters}
                   selectedChapter={selectedChapter}
                   onSelect={handleChapterSelect}
-                  onVerseJump={handleVerseJump} 
+                  onVerseJump={handleVerseJump}
                 />
               )}
             </div>
@@ -225,12 +228,12 @@ function App() {
 
         {/* RIGHT */}
         <div className="flex items-center z-20">
-           <button 
-             onClick={() => setIsSettingsOpen(true)}
-             className={`p-2 rounded-full transition-colors ${isLight ? 'hover:bg-stone-300 text-stone-700' : 'hover:bg-gray-700 text-gray-300'}`}
-           >
-             <Settings size={24} />
-           </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className={`p-2 rounded-full transition-colors ${isLight ? 'hover:bg-stone-300 text-stone-700' : 'hover:bg-gray-700 text-gray-300'}`}
+          >
+            <Settings size={24} />
+          </button>
         </div>
       </div>
 
@@ -239,7 +242,7 @@ function App() {
         {!selectedChapter ? (
           <div className="h-full flex flex-col items-center justify-center text-center opacity-50 space-y-4">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-300' : 'bg-gray-800'}`}>
-               <img src={logoquran} className="w-8 h-8 opacity-50" />
+              <img src={logoquran} className="w-8 h-8 opacity-50" />
             </div>
             <p className="text-lg font-mono">Bismillah</p>
             {loadingChapters && <p className="text-xs text-gray-500">Connecting to Server...</p>}
@@ -250,7 +253,7 @@ function App() {
             loading={loadingVerses}
             page={page}
             setPage={setPage}
-            totalPages={totalPages} 
+            totalPages={totalPages}
             scrollRef={contentTopRef}
             theme={theme}
             showTranslation={showTranslation}
@@ -259,13 +262,13 @@ function App() {
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
             selectedChapter={selectedChapter}
             onChapterNavigate={handleChapterSelect}
-            targetVerse={targetVerse} 
-            setTargetVerse={setTargetVerse} 
+            targetVerse={targetVerse}
+            setTargetVerse={setTargetVerse}
           />
         )}
       </main>
 
-      <SettingsModal 
+      <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         theme={theme}
