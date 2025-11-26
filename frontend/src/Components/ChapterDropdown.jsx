@@ -1,13 +1,27 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 function ChapterDropdown({ chapters, selectedChapter, onSelect }) {
+  const selectedRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedRef.current) {
+      selectedRef.current.scrollIntoView({
+        behavior: 'auto', //  'auto', 'smooth' 
+        block: 'start',  //  'start', 'center', 'end', 'nearest'
+      });
+    }
+  }, []);
+
   return (
     <ul className="p-2 space-y-1">
       {chapters.map((chapter) => {
         const isSelected = selectedChapter?.id === chapter.id;
         
         return (
-          <li key={chapter.id}>
+          <li 
+            key={chapter.id}
+            ref={isSelected ? selectedRef : null}
+          >
             <button
               onClick={(e) => {
                 e.stopPropagation(); 
@@ -43,7 +57,6 @@ function ChapterDropdown({ chapters, selectedChapter, onSelect }) {
               </div>
 
               {/* CENTER (DESKTOP ONLY): Translated Name */}
-              {/* hidden on mobile, visible block on md screens, takes up available flex space to center itself */}
               <div className="hidden md:block flex-1 text-center px-4">
                 <span className={`text-sm font-medium ${isSelected ? 'text-emerald-400' : 'text-gray-200'}`}>
                   {chapter.translated_name.name}
@@ -53,7 +66,7 @@ function ChapterDropdown({ chapters, selectedChapter, onSelect }) {
               {/* RIGHT SIDE: Mobile Translation + Verses Count */}
               <div className="flex flex-col items-end ml-2 shrink-0">
                 
-                {/* Mobile Only: Translated Name (Stacked on top of badge) */}
+                {/* Mobile Only: Translated Name */}
                 <span className={`md:hidden text-sm font-medium mb-1 ${isSelected ? 'text-emerald-400' : 'text-gray-200'}`}>
                    {chapter.translated_name.name}
                 </span>
