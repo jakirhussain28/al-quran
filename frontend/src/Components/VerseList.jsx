@@ -325,13 +325,17 @@ function VerseList({
           })}
         </div>
 
-        <div ref={loadMoreRef} className="h-20 flex items-center justify-center w-full">
-            {loading && (
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-300' : 'bg-gray-800'}`}>
-               <img src={logoquran} className="w-8 h-8 opacity-50" />
-            </div>
-            )}
-        </div>
+{/* UPDATED: Dynamic height. Collapses to h-6 when not loading, effectively removing the gap */}
+<div 
+  ref={loadMoreRef} 
+  className={`flex items-center justify-center w-full transition-all duration-300 ${loading ? 'h-24 py-4' : 'h-6'}`}
+>
+    {loading && (
+    <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-300' : 'bg-gray-800'}`}>
+       <img src={logoquran} className="w-8 h-8 opacity-50" />
+    </div>
+    )}
+</div>
 
         {!loading && page >= totalPages && (
           <ChapterNavigation 

@@ -23,7 +23,7 @@ const ChapterNavigation = ({
 
   return (
     // Changed to flex-row to keep items in one line on all devices
-    <div className="flex flex-row items-center justify-between gap-2 md:gap-4 py-6 md:py-8 border-t border-dashed border-gray-700/30 mt-8">
+    <div className="flex flex-row items-center justify-between gap-2 md:gap-4 py-6 md:py-4 mt-0">
       
       {/* PREV CHAPTER */}
       <div className="flex-1 flex justify-start">
