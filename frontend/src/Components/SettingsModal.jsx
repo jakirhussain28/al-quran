@@ -54,7 +54,7 @@ function SettingsModal({
     >
       {/* 2. Modal Card */}
       <div 
-        className={`w-[90%] max-w-[380px] rounded-4xl p-5 sm:p-6 relative  transition-colors duration-300 border ${modalBase}`}
+        className={`w-[90%] max-w-[380px] rounded-4xl p-5 sm:p-6 relative transition-colors duration-300 border ${modalBase}`}
         onClick={(e) => e.stopPropagation()} 
       >
         
@@ -94,27 +94,27 @@ function SettingsModal({
           <div className={`${rowBase} rounded-3xl h-16 sm:h-20 px-4 sm:px-6 flex items-center justify-between transition-colors duration-300`}>
             <span className={`text-sm sm:text-base font-medium ${labelColor}`}>Sahih Translation</span>
             
-            {/* Pill Toggle */}
-            <div className={`${toggleTrack} rounded-full p-1 flex items-center relative h-7 w-20 sm:h-8 sm:w-24 shrink-0 transition-colors`}>
-               {/* Background Slider */}
+            {/* Pill Toggle (Single Button Wrapper) */}
+            <button 
+              onClick={() => setShowTranslation(!showTranslation)}
+              className={`${toggleTrack} rounded-full p-1 flex items-center relative h-8 w-20 sm:h-8 sm:w-24 shrink-0 transition-colors focus:outline-none cursor-pointer`}
+            >
+               {/* Moving Background Slider */}
                <div className={`
                  absolute top-1 bottom-1 w-[calc(50%-4px)] bg-emerald-500 rounded-full transition-transform duration-200 ease-out z-0
                  ${showTranslation ? 'translate-x-full left-1' : 'translate-x-0 left-1'}
                `}></div>
 
-               <button 
-                 onClick={() => setShowTranslation(false)}
-                 className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${!showTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}
-               >
+               {/* OFF Label */}
+               <span className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${!showTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}>
                  Off
-               </button>
-               <button 
-                 onClick={() => setShowTranslation(true)}
-                 className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${showTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}
-               >
+               </span>
+
+               {/* ON Label */}
+               <span className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${showTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}>
                  On
-               </button>
-            </div>
+               </span>
+            </button>
           </div>
 
           {/* --- ROW 3: FONT SIZE --- */}
