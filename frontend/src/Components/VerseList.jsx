@@ -9,6 +9,24 @@ const toArabicNumerals = (num) => {
   return id.replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
 };
 
+// --- OPTIMIZATION: Skeleton Loader Component ---
+const VerseSkeleton = ({ isLight }) => {
+  const bgBase = isLight ? 'bg-white border-stone-200' : 'bg-[#1a1b1d] border-white/5';
+  const shimmer = isLight ? 'bg-stone-200' : 'bg-gray-800';
+
+  return (
+    <div className={`rounded-2xl border p-4 lg:p-6 flex flex-col md:flex-row gap-4 animate-pulse ${bgBase}`}>
+      <div className={`hidden md:block w-20 h-full rounded-lg ${shimmer} opacity-20`}></div>
+      <div className="flex-1 space-y-6">
+        <div className={`h-8 w-3/4 ml-auto rounded-lg ${shimmer} opacity-30`}></div>
+        <div className={`h-6 w-1/2 ml-auto rounded-lg ${shimmer} opacity-20`}></div>
+        <div className={`h-4 w-full rounded-lg ${shimmer} opacity-10 mt-8`}></div>
+        <div className={`h-4 w-5/6 rounded-lg ${shimmer} opacity-10`}></div>
+      </div>
+    </div>
+  );
+};
+
 function VerseList({ 
   verses, 
   loading, 
@@ -244,6 +262,17 @@ function VerseList({
         )}
 
         <div className="space-y-4 mb-4">
+          
+          {/* OPTIMIZATION: Show Skeletons if loading and no verses (Initial Load) */}
+          {loading && verses.length === 0 && (
+            <>
+              <VerseSkeleton isLight={isLight} />
+              <VerseSkeleton isLight={isLight} />
+              <VerseSkeleton isLight={isLight} />
+              <VerseSkeleton isLight={isLight} />
+            </>
+          )}
+
           {verses.map((verse) => {
             const isPlaying = playingVerseKey === verse.verse_key;
             const activeStyles = isPlaying
@@ -325,19 +354,19 @@ function VerseList({
           })}
         </div>
 
-{/* UPDATED: Dynamic height. Collapses to h-6 when not loading, effectively removing the gap */}
-<div 
-  ref={loadMoreRef} 
-  className={`flex items-center justify-center w-full transition-all duration-300 ${loading ? 'h-24 py-4' : 'h-6'}`}
->
-    {loading && (
-    <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-300' : 'bg-gray-800'}`}>
-       <img src={logoquran} className="w-8 h-8 opacity-50" />
-    </div>
-    )}
-</div>
+        {/* Dynamic height. Collapses to h-6 when not loading, effectively removing the gap */}
+        <div 
+          ref={loadMoreRef} 
+          className={`flex items-center justify-center w-full transition-all duration-300 ${loading ? 'h-24 py-4' : 'h-6'}`}
+        >
+            {loading && verses.length > 0 && (
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse ${isLight ? 'bg-stone-300' : 'bg-gray-800'}`}>
+               <img src={logoquran} className="w-8 h-8 opacity-50" />
+            </div>
+            )}
+        </div>
 
-        {!loading && page >= totalPages && (
+        {!loading && page >= totalPages && verses.length > 0 && (
           <ChapterNavigation 
             selectedChapter={selectedChapter} 
             onNavigate={onChapterNavigate}

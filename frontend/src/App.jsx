@@ -1,16 +1,30 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Settings, Square } from 'lucide-react';
 import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
-import SettingsModal from './Components/SettingsModal';
+
+// --- OPTIMIZATION: Lazy Load Settings Modal (Code Splitting) ---
+const SettingsModal = lazy(() => import('./Components/SettingsModal'));
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function App() {
   // --- DATA STATES ---
   const [chapters, setChapters] = useState([]);
-  const [selectedChapter, setSelectedChapter] = useState(null);
+  
+  // OPTIMIZATION: Initialize immediately from localStorage
+  // This allows the App to render the Chapter Title BEFORE the API returns
+  const [selectedChapter, setSelectedChapter] = useState(() => {
+    try {
+      const saved = localStorage.getItem('app-lastChapter');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.warn("Failed to parse saved chapter", e);
+      return null;
+    }
+  });
+
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -26,27 +40,18 @@ function App() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const stopAudioTrigger = useRef(() => { });
 
-  // --- SETTINGS STATES (WITH PERSISTENCE) ---
+  // --- SETTINGS STATES ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // 1. Theme
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('app-theme') || 'light';
-  });
-
-  // 2. Translation
+  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'light');
   const [showTranslation, setShowTranslation] = useState(() => {
     const saved = localStorage.getItem('app-showTranslation');
     return saved !== null ? saved === 'true' : true;
   });
-
-  // 3. Only Translation (New)
   const [onlyTranslation, setOnlyTranslation] = useState(() => {
     const saved = localStorage.getItem('app-onlyTranslation');
     return saved !== null ? saved === 'true' : false;
   });
-
-  // 4. Font Size
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem('app-fontSize');
     return saved ? parseInt(saved, 10) : 3;
@@ -76,7 +81,7 @@ function App() {
       });
   }, []);
 
-  // --- FETCH VERSES (Appends or Resets) ---
+  // --- FETCH VERSES ---
   useEffect(() => {
     if (!selectedChapter) return;
 
@@ -102,7 +107,6 @@ function App() {
         if (page === 1) {
           setVerses(fetchedVerses);
         } else {
-          // Infinite Scroll Append
           setVerses(prev => {
             const existingIds = new Set(prev.map(v => v.id));
             const uniqueNewVerses = fetchedVerses.filter(v => !existingIds.has(v.id));
@@ -123,17 +127,22 @@ function App() {
 
   // --- HANDLERS ---
   const handleChapterSelect = (chapter) => {
-    const chapterObj = typeof chapter === 'number'
-      ? chapters.find(c => c.id === chapter)
-      : chapter;
+    let chapterObj = chapter;
+    if (typeof chapter === 'number') {
+       chapterObj = chapters.find(c => c.id === chapter);
+    }
 
     if (chapterObj) {
       if (selectedChapter && selectedChapter.id === chapterObj.id) return;
+      
       stopAudioTrigger.current();
       setVerses([]);
       setPage(1);
       setSelectedChapter(chapterObj);
       setTargetVerse(null);
+
+      // Save to localStorage so it opens next time
+      localStorage.setItem('app-lastChapter', JSON.stringify(chapterObj));
     }
   };
 
@@ -197,7 +206,9 @@ function App() {
             </div>
 
             <div>
-              {loadingChapters ? (
+              {/* If we have a selectedChapter (from local storage), we show DynamicBar IMMEDIATELY. 
+                  We don't wait for loadingChapters to finish. This feels much faster. */}
+              {loadingChapters && !selectedChapter ? (
                 <div className="h-11 w-[300px] md:w-[500px] bg-[#1a1b1d] border border-white/5 rounded-2xl animate-pulse flex items-center justify-center">
                   <div className="h-2 w-24 bg-gray-700 rounded-full opacity-50"></div>
                 </div>
@@ -256,18 +267,23 @@ function App() {
         )}
       </main>
 
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        theme={theme}
-        setTheme={setTheme}
-        showTranslation={showTranslation}
-        setShowTranslation={setShowTranslation}
-        onlyTranslation={onlyTranslation}
-        setOnlyTranslation={setOnlyTranslation}
-        fontSize={fontSize}
-        setFontSize={setFontSize}
-      />
+      {/* Wrap Lazy Loaded Component in Suspense */}
+      <Suspense fallback={null}>
+        {isSettingsOpen && (
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            theme={theme}
+            setTheme={setTheme}
+            showTranslation={showTranslation}
+            setShowTranslation={setShowTranslation}
+            onlyTranslation={onlyTranslation}
+            setOnlyTranslation={setOnlyTranslation}
+            fontSize={fontSize}
+            setFontSize={setFontSize}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
