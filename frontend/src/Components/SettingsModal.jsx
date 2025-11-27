@@ -35,26 +35,13 @@ function SettingsModal({
 
   const rowBase = isLight
     ? 'bg-stone-100'
-    : 'bg-[#192516]'; // Dark greenish for night
+    : 'bg-[#192516]'; 
 
-  // Text Colors
   const textActive = isLight ? 'text-stone-800' : 'text-gray-200';
   const textInactive = isLight ? 'text-stone-400' : 'text-gray-500';
   const labelColor = isLight ? 'text-stone-500' : 'text-gray-400';
-
-  // Toggle/Slider Backgrounds
   const toggleTrack = isLight ? 'bg-stone-300' : 'bg-[#3e3e3e]';
   const sliderDotInactive = isLight ? 'bg-stone-400 hover:bg-stone-500' : 'bg-gray-500 hover:bg-gray-400';
-
-  // Handler for Only Translation
-  const toggleOnlyTranslation = () => {
-    const newValue = !onlyTranslation;
-    setOnlyTranslation(newValue);
-    // If enabling only translation, we MUST ensure translation is visible
-    if (newValue) {
-      setShowTranslation(true);
-    }
-  };
 
   return (
     // 1. Backdrop
@@ -98,12 +85,13 @@ function SettingsModal({
           </div>
 
           {/* --- ROW 2: SAHIH TRANSLATION --- */}
+          {/* UPDATED: Disabled when 'onlyTranslation' is true */}
           <div className={`${rowBase} rounded-3xl h-16 sm:h-20 px-4 sm:px-6 flex items-center justify-between transition-colors duration-300`}>
             <span className={`text-sm sm:text-base font-medium ${labelColor}`}>Sahih Translation</span>
             
             <button 
               onClick={() => setShowTranslation(!showTranslation)}
-              disabled={onlyTranslation}
+              disabled={onlyTranslation} 
               className={`
                 ${toggleTrack} rounded-full p-1 flex items-center relative h-8 w-20 sm:h-8 sm:w-24 shrink-0 
                 transition-all focus:outline-none 
@@ -123,12 +111,12 @@ function SettingsModal({
             </button>
           </div>
 
-          {/* --- ROW 3: ONLY TRANSLATION (NEW) --- */}
+          {/* --- ROW 3: ONLY TRANSLATION --- */}
           <div className={`${rowBase} rounded-3xl h-16 sm:h-20 px-4 sm:px-6 flex items-center justify-between transition-colors duration-300`}>
             <span className={`text-sm sm:text-base font-medium ${labelColor}`}>Only Translation</span>
             
             <button 
-              onClick={toggleOnlyTranslation}
+              onClick={() => setOnlyTranslation(!onlyTranslation)}
               className={`${toggleTrack} rounded-full p-1 flex items-center relative h-8 w-20 sm:h-8 sm:w-24 shrink-0 transition-colors focus:outline-none cursor-pointer`}
             >
                <div className={`

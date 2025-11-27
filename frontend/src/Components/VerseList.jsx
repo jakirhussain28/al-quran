@@ -18,7 +18,7 @@ function VerseList({
   scrollRef,
   theme,           
   showTranslation, 
-  onlyTranslation, // New Prop
+  onlyTranslation,
   fontSize,
   onAudioStatusChange, 
   registerStopHandler,
@@ -309,7 +309,7 @@ function VerseList({
                     </p>
                   )}
 
-                  {/* --- TRANSLATION (Shown if enabled OR if Only Translation is active) --- */}
+                  {/* --- LOGIC: Show Translation if "Sahih" is ON *OR* "Only Translation" is ON --- */}
                   {(showTranslation || onlyTranslation) && (
                     <p 
                       className={`leading-relaxed transition-all duration-200 opacity-90 ${translationSizeMap[fontSize]} ${isLight ? 'text-stone-600' : 'text-gray-400'}`}
