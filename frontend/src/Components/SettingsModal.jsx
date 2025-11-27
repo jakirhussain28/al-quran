@@ -29,8 +29,8 @@ function SettingsModal({
   // --- STYLES CONFIGURATION ---
   // Modal Container
   const modalBase = isLight 
-    ? 'bg-white border-stone-200 shadow-xl' 
-    : 'bg-[#121212] border-white/10 shadow-2xl';
+    ? 'bg-white border-stone-400 shadow-xl' 
+    : 'bg-[#121212] border-gray-500 shadow-2xl';
 
   // The inner rows (Theme, Translation, Font)
   const rowBase = isLight
