@@ -29,36 +29,34 @@ function App() {
   // --- SETTINGS STATES (WITH PERSISTENCE) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // 1. Theme: Default to 'light' if nothing saved
+  // 1. Theme
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('app-theme') || 'light';
   });
 
-  // 2. Translation: Default to true. We must check for explicit "false" string.
+  // 2. Translation
   const [showTranslation, setShowTranslation] = useState(() => {
     const saved = localStorage.getItem('app-showTranslation');
     return saved !== null ? saved === 'true' : true;
   });
 
-  // 3. Font Size: Default to 3. Parse integer from storage.
+  // 3. Only Translation (New)
+  const [onlyTranslation, setOnlyTranslation] = useState(() => {
+    const saved = localStorage.getItem('app-onlyTranslation');
+    return saved !== null ? saved === 'true' : false;
+  });
+
+  // 4. Font Size
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem('app-fontSize');
     return saved ? parseInt(saved, 10) : 3;
   });
 
   // --- PERSISTENCE EFFECTS ---
-  // These run every time the specific state changes to save it.
-  useEffect(() => {
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem('app-showTranslation', showTranslation);
-  }, [showTranslation]);
-
-  useEffect(() => {
-    localStorage.setItem('app-fontSize', fontSize);
-  }, [fontSize]);
+  useEffect(() => { localStorage.setItem('app-theme', theme); }, [theme]);
+  useEffect(() => { localStorage.setItem('app-showTranslation', showTranslation); }, [showTranslation]);
+  useEffect(() => { localStorage.setItem('app-onlyTranslation', onlyTranslation); }, [onlyTranslation]);
+  useEffect(() => { localStorage.setItem('app-fontSize', fontSize); }, [fontSize]);
 
   // Refs
   const contentTopRef = useRef(null);
@@ -130,9 +128,7 @@ function App() {
       : chapter;
 
     if (chapterObj) {
-      if (selectedChapter && selectedChapter.id === chapterObj.id) {
-        return;
-      }
+      if (selectedChapter && selectedChapter.id === chapterObj.id) return;
       stopAudioTrigger.current();
       setVerses([]);
       setPage(1);
@@ -142,13 +138,8 @@ function App() {
   };
 
   const handleVerseJump = (verseNumber) => {
-    // 1. Calculate Page (10 verses per page)
     const requiredPage = Math.ceil(verseNumber / 10);
-
-    // 2. Set target for VerseList to scroll to
     setTargetVerse({ id: verseNumber });
-
-    // 3. If we are on a lower page, force load the required page
     if (page < requiredPage) {
       setPage(requiredPage);
     }
@@ -165,7 +156,7 @@ function App() {
 
       {/* --- GLOBAL HEADER --- */}
       <div className={`fixed top-0 w-full z-50 h-16 px-3 md:px-4 flex items-center justify-between shadow-sm border-b transition-colors duration-300 ${headerBgClass}`}>
-
+        
         {/* LEFT */}
         <div className="flex items-center gap-3 z-20">
           <div className="md:hidden">
@@ -191,14 +182,10 @@ function App() {
         {/* CENTER: Dynamic Bar */}
         <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
           <div className="pointer-events-auto flex items-start gap-1">
-
-            <div className={`
+             <div className={`
                hidden md:flex items-center justify-center mr-0
                transition-all duration-300 ease-out transform
-               ${isAudioPlaying
-                ? 'opacity-100 translate-x-0 scale-100'
-                : 'opacity-0 translate-x-4 scale-75 pointer-events-none'
-              }
+               ${isAudioPlaying ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-4 scale-75 pointer-events-none'}
                mt-1 
             `}>
               <button
@@ -257,6 +244,7 @@ function App() {
             scrollRef={contentTopRef}
             theme={theme}
             showTranslation={showTranslation}
+            onlyTranslation={onlyTranslation} 
             fontSize={fontSize}
             onAudioStatusChange={setIsAudioPlaying}
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
@@ -275,6 +263,8 @@ function App() {
         setTheme={setTheme}
         showTranslation={showTranslation}
         setShowTranslation={setShowTranslation}
+        onlyTranslation={onlyTranslation}
+        setOnlyTranslation={setOnlyTranslation}
         fontSize={fontSize}
         setFontSize={setFontSize}
       />

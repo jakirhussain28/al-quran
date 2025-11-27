@@ -18,6 +18,7 @@ function VerseList({
   scrollRef,
   theme,           
   showTranslation, 
+  onlyTranslation, // New Prop
   fontSize,
   onAudioStatusChange, 
   registerStopHandler,
@@ -207,14 +208,12 @@ function VerseList({
     5: 'text-2xl',
   };
 
-  // --- NEW: Marker Size Mapping (Replacing 'em') ---
-  // Maps fontSize (1-5) to explicit Tailwind height, width, and font classes
   const markerStyleMap = {
-    1: 'h-5 min-w-4 text-sm border-1',     // Smallest
-    2: 'h-6 min-w-6 text-base border-1', // Medium
-    3: 'h-8 min-w-8 text-lg border-1',   // Large
-    4: 'h-9 min-w-10 text-xl border-1', // XL
-    5: 'h-10 min-w-12 text-2xl border-1' // 2XL
+    1: 'h-5 min-w-4 text-sm border-1',    
+    2: 'h-6 min-w-6 text-base border-1', 
+    3: 'h-8 min-w-8 text-lg border-1',   
+    4: 'h-9 min-w-10 text-xl border-1', 
+    5: 'h-10 min-w-12 text-2xl border-1' 
   };
 
   const isLight = theme === 'light';
@@ -287,29 +286,31 @@ function VerseList({
                 </div>
 
                 <div className="flex-1 p-5 md:p-8 pt-2 md:pt-8">
-                  <p 
-                    className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
-                    dir="rtl"
-                  >
-                    {verse.text_uthmani} 
-                    
-                    {/* --- UPDATED: Using Explicit Tailwind Classes --- */}
-                    <span 
-                      className={`
-                        inline-flex items-center justify-center 
-                        px-1 mr-2 rounded-lg border-current
-                        font-bold leading-none
-                        align-middle select-none whitespace-nowrap
-                        ${ayahMarkerColor}
-                        ${markerStyleMap[fontSize]}
-                      `}
+                  {/* --- CONDITIONAL ARABIC RENDERING --- */}
+                  {!onlyTranslation && (
+                    <p 
+                      className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
+                      dir="rtl"
                     >
-                       {arabicNumber}
-                    </span>
-                    {/* ----------------------------------------------- */}
-                  </p>
+                      {verse.text_uthmani} 
+                      
+                      <span 
+                        className={`
+                          inline-flex items-center justify-center 
+                          px-1 mr-2 rounded-lg border-current
+                          font-bold leading-none
+                          align-middle select-none whitespace-nowrap
+                          ${ayahMarkerColor}
+                          ${markerStyleMap[fontSize]}
+                        `}
+                      >
+                        {arabicNumber}
+                      </span>
+                    </p>
+                  )}
 
-                  {showTranslation && (
+                  {/* --- TRANSLATION (Shown if enabled OR if Only Translation is active) --- */}
+                  {(showTranslation || onlyTranslation) && (
                     <p 
                       className={`leading-relaxed transition-all duration-200 opacity-90 ${translationSizeMap[fontSize]} ${isLight ? 'text-stone-600' : 'text-gray-400'}`}
                     >

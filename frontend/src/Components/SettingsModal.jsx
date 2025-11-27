@@ -8,6 +8,8 @@ function SettingsModal({
   setTheme, 
   showTranslation, 
   setShowTranslation, 
+  onlyTranslation,
+  setOnlyTranslation,
   fontSize, 
   setFontSize 
 }) {
@@ -27,12 +29,10 @@ function SettingsModal({
   const isLight = theme === 'light';
 
   // --- STYLES CONFIGURATION ---
-  // Modal Container
   const modalBase = isLight 
     ? 'bg-white border-stone-400 shadow-xl' 
     : 'bg-[#121212] border-gray-500 shadow-2xl';
 
-  // The inner rows (Theme, Translation, Font)
   const rowBase = isLight
     ? 'bg-stone-100'
     : 'bg-[#192516]'; // Dark greenish for night
@@ -46,8 +46,18 @@ function SettingsModal({
   const toggleTrack = isLight ? 'bg-stone-300' : 'bg-[#3e3e3e]';
   const sliderDotInactive = isLight ? 'bg-stone-400 hover:bg-stone-500' : 'bg-gray-500 hover:bg-gray-400';
 
+  // Handler for Only Translation
+  const toggleOnlyTranslation = () => {
+    const newValue = !onlyTranslation;
+    setOnlyTranslation(newValue);
+    // If enabling only translation, we MUST ensure translation is visible
+    if (newValue) {
+      setShowTranslation(true);
+    }
+  };
+
   return (
-    // 1. Backdrop with Blur & Centering
+    // 1. Backdrop
     <div 
       className="fixed inset-0 z-100 flex items-center justify-center bg-black/20 backdrop-blur-[2px] animate-in fade-in duration-200"
       onClick={onClose}
@@ -58,7 +68,7 @@ function SettingsModal({
         onClick={(e) => e.stopPropagation()} 
       >
         
-        {/* 3. Gear Icon (Top Right) */}
+        {/* 3. Gear Icon */}
         <div className="flex justify-end mb-2">
            <Settings className={`w-6 h-6 sm:w-7 sm:h-7 transition-colors ${isLight ? 'text-stone-400' : 'text-gray-400'}`} />
         </div>
@@ -70,8 +80,6 @@ function SettingsModal({
             <span className={`text-sm sm:text-base font-medium whitespace-nowrap transition-colors ${theme === 'night' ? textActive : textInactive}`}>
               Night Sky
             </span>
-            
-            {/* Theme Switch */}
             <button 
               onClick={() => setTheme(theme === 'night' ? 'light' : 'night')}
               className={`relative w-14 h-7 sm:w-16 sm:h-8 rounded-full flex items-center px-1 transition-colors focus:outline-none shrink-0 ${toggleTrack}`}
@@ -84,47 +92,65 @@ function SettingsModal({
                 }
               `}></div>
             </button>
-
             <span className={`text-sm sm:text-base font-medium whitespace-nowrap transition-colors ${theme === 'light' ? textActive : textInactive}`}>
               Heaven Light
             </span>
           </div>
 
-          {/* --- ROW 2: TRANSLATION --- */}
+          {/* --- ROW 2: SAHIH TRANSLATION --- */}
           <div className={`${rowBase} rounded-3xl h-16 sm:h-20 px-4 sm:px-6 flex items-center justify-between transition-colors duration-300`}>
             <span className={`text-sm sm:text-base font-medium ${labelColor}`}>Sahih Translation</span>
             
-            {/* Pill Toggle (Single Button Wrapper) */}
             <button 
               onClick={() => setShowTranslation(!showTranslation)}
-              className={`${toggleTrack} rounded-full p-1 flex items-center relative h-8 w-20 sm:h-8 sm:w-24 shrink-0 transition-colors focus:outline-none cursor-pointer`}
+              disabled={onlyTranslation}
+              className={`
+                ${toggleTrack} rounded-full p-1 flex items-center relative h-8 w-20 sm:h-8 sm:w-24 shrink-0 
+                transition-all focus:outline-none 
+                ${onlyTranslation ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+              `}
             >
-               {/* Moving Background Slider */}
                <div className={`
                  absolute top-1 bottom-1 w-[calc(50%-4px)] bg-emerald-500 rounded-full transition-transform duration-200 ease-out z-0
                  ${showTranslation ? 'translate-x-full left-1' : 'translate-x-0 left-1'}
                `}></div>
-
-               {/* OFF Label */}
                <span className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${!showTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}>
                  Off
                </span>
-
-               {/* ON Label */}
                <span className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${showTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}>
                  On
                </span>
             </button>
           </div>
 
-          {/* --- ROW 3: FONT SIZE --- */}
+          {/* --- ROW 3: ONLY TRANSLATION (NEW) --- */}
+          <div className={`${rowBase} rounded-3xl h-16 sm:h-20 px-4 sm:px-6 flex items-center justify-between transition-colors duration-300`}>
+            <span className={`text-sm sm:text-base font-medium ${labelColor}`}>Only Translation</span>
+            
+            <button 
+              onClick={toggleOnlyTranslation}
+              className={`${toggleTrack} rounded-full p-1 flex items-center relative h-8 w-20 sm:h-8 sm:w-24 shrink-0 transition-colors focus:outline-none cursor-pointer`}
+            >
+               <div className={`
+                 absolute top-1 bottom-1 w-[calc(50%-4px)] bg-emerald-500 rounded-full transition-transform duration-200 ease-out z-0
+                 ${onlyTranslation ? 'translate-x-full left-1' : 'translate-x-0 left-1'}
+               `}></div>
+               <span className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${!onlyTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}>
+                 Off
+               </span>
+               <span className={`flex-1 text-[10px] sm:text-xs font-bold z-10 text-center transition-colors ${onlyTranslation ? 'text-white' : (isLight ? 'text-stone-500' : 'text-gray-400')}`}>
+                 On
+               </span>
+            </button>
+          </div>
+
+          {/* --- ROW 4: FONT SIZE --- */}
           <div className={`${rowBase} rounded-3xl h-20 sm:h-24 px-4 sm:px-6 flex flex-col justify-center transition-colors duration-300`}>
             <span className={`text-sm sm:text-base font-medium mb-2 sm:mb-3 ${labelColor}`}>Font Size</span>
             
             <div className="flex items-center gap-3 sm:gap-4">
               <span className={`text-xs font-medium ${textInactive}`}>A</span>
               
-              {/* Slider Track */}
               <div className={`flex-1 relative h-3 rounded-full flex items-center justify-between px-1 transition-colors ${toggleTrack}`}>
                 {fontSizes.map((step) => (
                   <button
