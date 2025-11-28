@@ -39,33 +39,66 @@ function SurahInfoModal({
   };
 
   // --- REGEX STYLE INJECTOR ---
-  // This ensures styles work even without the 'prose' plugin
   const formatHTML = (htmlContent) => {
     if (!htmlContent) return '';
     
     let processed = htmlContent;
     const isLight = theme === 'light';
 
-    // 1. Define Classes based on Theme
+    // --- 1. DEFINE TAILWIND CLASSES ---
+
+    // Headings
     const h2Classes = `text-2xl md:text-3xl font-bold mt-8 mb-4 leading-tight ${isLight ? 'text-emerald-800' : 'text-emerald-400'}`;
     const h3Classes = `text-xl md:text-2xl font-bold mt-6 mb-3 ${isLight ? 'text-emerald-700' : 'text-emerald-500'}`;
-    const pClasses = `text-base md:text-lg leading-relaxed mb-4 block ${isLight ? 'text-stone-700' : 'text-gray-300'}`;
+    
+    // Text Body
+    const textBase = `text-base md:text-lg leading-relaxed ${isLight ? 'text-stone-700' : 'text-gray-300'}`;
+    const pClasses = `${textBase} mb-4 block`;
     const bClasses = `font-bold ${isLight ? 'text-stone-900' : 'text-white'}`;
-
-    // 2. Inject Classes using Regex
-    // We look for the opening tag <tag> and replace it with <tag class="...">
     
-    // Replace <h2>
+    // Links
+    const aClasses = `font-medium underline underline-offset-2 transition-colors duration-200 ${
+      isLight 
+        ? 'text-emerald-700 hover:text-emerald-900 decoration-emerald-300' 
+        : 'text-emerald-400 hover:text-emerald-300 decoration-emerald-700'
+    }`;
+
+    // Lists (OL / UL)
+    const listBase = `pl-5 md:pl-8 mb-6 space-y-2 ${textBase}`; // Inherit text size/color
+    const olClasses = `list-decimal ${listBase}`;
+    const ulClasses = `list-disc ${listBase}`;
+    
+    // List Items
+    const liClasses = `pl-1`; // Small padding for text alignment
+    
+    // Specific Handling for "ql-indent-1" (Quill Editor Indentation)
+    // We map this to a large left margin and remove the bullet since it's usually a continuation
+    const indentClasses = `block ml-6 md:ml-10 mt-2 mb-2 ${isLight ? 'text-stone-600' : 'text-gray-400'}`;
+
+
+    // --- 2. INJECT CLASSES VIA REGEX ---
+
+    // A. Handle Specific Quill Classes first (before general tags)
+    // Replace class="ql-indent-1" with Tailwind classes
+    processed = processed.replace(/class="ql-indent-1"/gi, `class="${indentClasses}"`);
+
+    // B. Block Elements
     processed = processed.replace(/<h2(.*?)>/gi, `<h2 class="${h2Classes}"$1>`);
-    
-    // Replace <h3> (just in case)
     processed = processed.replace(/<h3(.*?)>/gi, `<h3 class="${h3Classes}"$1>`);
-
-    // Replace <p>
     processed = processed.replace(/<p(.*?)>/gi, `<p class="${pClasses}"$1>`);
+    
+    // C. Lists
+    // Match <ol> start tag
+    processed = processed.replace(/<ol(.*?)>/gi, `<ol class="${olClasses}"$1>`);
+    // Match <ul> start tag
+    processed = processed.replace(/<ul(.*?)>/gi, `<ul class="${ulClasses}"$1>`);
+    // Match plain <li> (only those without existing classes to avoid overwriting ql-indent-1)
+    processed = processed.replace(/<li>/gi, `<li class="${liClasses}">`);
 
-    // Replace <b> and <strong>
+    // D. Inline Elements
     processed = processed.replace(/<(b|strong)(.*?)>/gi, `<strong class="${bClasses}"$2>`);
+    // Inject link classes into <a ...>
+    processed = processed.replace(/<a (.*?)>/gi, `<a class="${aClasses}" $1>`);
 
     return processed;
   };
@@ -138,10 +171,7 @@ function SurahInfoModal({
              </div>
           ) : info ? (
             <div className="max-w-none">
-               {/* We call formatHTML() here. 
-                  This function manually injects Tailwind classes into the strings 
-                  returned by the API before React renders them. 
-               */}
+               {/* Injected HTML with Tailwind Classes */}
                <div dangerouslySetInnerHTML={{ __html: formatHTML(info.text) }} />
                
                <div className={`mt-8 pt-6 border-t text-xs opacity-50 ${isLight ? 'border-stone-200' : 'border-white/10'}`}>
