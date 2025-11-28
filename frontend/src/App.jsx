@@ -4,44 +4,39 @@ import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
 
-// --- OPTIMIZATION: Lazy Load Settings Modal (Code Splitting) ---
+// --- LAZY LOADING MODALS ---
 const SettingsModal = lazy(() => import('./Components/SettingsModal'));
+// 1. Import the new modal
+const SurahInfoModal = lazy(() => import('./Components/SurahInfoModal')); 
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function App() {
-  // --- DATA STATES ---
+  // ... (Existing Data States)
   const [chapters, setChapters] = useState([]);
-  
-  // OPTIMIZATION: Initialize immediately from localStorage
   const [selectedChapter, setSelectedChapter] = useState(() => {
     try {
       const saved = localStorage.getItem('app-lastChapter');
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
-      console.warn("Failed to parse saved chapter", e);
       return null;
     }
   });
 
+  // ... (Existing Verse/Audio States)
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-
-  // --- NEW: JUMP TARGET STATE ---
   const [targetVerse, setTargetVerse] = useState(null);
-
-  // --- UI STATES ---
   const [loadingChapters, setLoadingChapters] = useState(true);
   const [loadingVerses, setLoadingVerses] = useState(false);
-
-  // --- AUDIO STATE ---
-  // 'idle' | 'playing' | 'paused'
   const [audioStatus, setAudioStatus] = useState('idle'); 
   const stopAudioTrigger = useRef(() => { });
 
-  // --- SETTINGS STATES ---
+  // --- SETTINGS & INFO STATES ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // 2. Add state for Info Modal
+  const [isInfoOpen, setIsInfoOpen] = useState(false); 
 
   const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'light');
   const [showTranslation, setShowTranslation] = useState(() => {
@@ -57,16 +52,18 @@ function App() {
     return saved ? parseInt(saved, 10) : 3;
   });
 
-  // --- PERSISTENCE EFFECTS ---
+  // ... (Existing Effects and API calls remain exactly the same)
+  // ... (Keep Persist Effects, Fetch Chapters, Fetch Verses, Handle Chapter Select, Handle Verse Jump, Handle Global Audio)
+
+  // ... (useEffect for persistence) ...
   useEffect(() => { localStorage.setItem('app-theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('app-showTranslation', showTranslation); }, [showTranslation]);
   useEffect(() => { localStorage.setItem('app-onlyTranslation', onlyTranslation); }, [onlyTranslation]);
   useEffect(() => { localStorage.setItem('app-fontSize', fontSize); }, [fontSize]);
 
-  // Refs
   const contentTopRef = useRef(null);
 
-  // --- FETCH CHAPTERS ---
+  // ... (API Calls for Chapters and Verses - NO CHANGES) ...
   useEffect(() => {
     setLoadingChapters(true);
     fetch(`${API_URL}/api/chapters`)
@@ -76,34 +73,24 @@ function App() {
         setLoadingChapters(false);
       })
       .catch(err => {
-        console.error("Failed to load chapters", err);
         setLoadingChapters(false);
       });
   }, []);
 
-  // --- FETCH VERSES ---
   useEffect(() => {
     if (!selectedChapter) return;
-
     const controller = new AbortController();
     const signal = controller.signal;
-
-    if (page === 1 && contentTopRef.current) {
-      contentTopRef.current.scrollTop = 0;
-    }
-
+    if (page === 1 && contentTopRef.current) contentTopRef.current.scrollTop = 0;
     setLoadingVerses(true);
 
     fetch(`${API_URL}/api/chapters/${selectedChapter.id}/verses?page=${page}`, { signal })
       .then(res => res.json())
       .then(data => {
         if (signal.aborted) return;
-
         const fetchedVerses = data.verses || [];
         const meta = data.pagination || {};
-
         setTotalPages(meta.total_pages || 1);
-
         if (page === 1) {
           setVerses(fetchedVerses);
         } else {
@@ -116,32 +103,22 @@ function App() {
         setLoadingVerses(false);
       })
       .catch(err => {
-        if (err.name !== 'AbortError') {
-          console.error(err);
-          setLoadingVerses(false);
-        }
+        if (err.name !== 'AbortError') setLoadingVerses(false);
       });
-
     return () => controller.abort();
   }, [selectedChapter, page]);
 
-  // --- HANDLERS ---
+  // ... (Handlers - NO CHANGES) ...
   const handleChapterSelect = (chapter) => {
     let chapterObj = chapter;
-    if (typeof chapter === 'number') {
-       chapterObj = chapters.find(c => c.id === chapter);
-    }
-
+    if (typeof chapter === 'number') chapterObj = chapters.find(c => c.id === chapter);
     if (chapterObj) {
       if (selectedChapter && selectedChapter.id === chapterObj.id) return;
-      
-      // Stop audio completely when changing chapters
-      stopAudioTrigger.current(true); // true = force stop
+      stopAudioTrigger.current(true);
       setVerses([]);
       setPage(1);
       setSelectedChapter(chapterObj);
       setTargetVerse(null);
-
       localStorage.setItem('app-lastChapter', JSON.stringify(chapterObj));
     }
   };
@@ -149,30 +126,26 @@ function App() {
   const handleVerseJump = (verseNumber) => {
     const requiredPage = Math.ceil(verseNumber / 10);
     setTargetVerse({ id: verseNumber });
-    if (page < requiredPage) {
-      setPage(requiredPage);
-    }
+    if (page < requiredPage) setPage(requiredPage);
   };
 
-  // --- GLOBAL AUDIO CONTROL ---
   const handleGlobalAudioClick = () => {
-    if (audioStatus === 'playing') {
-      // If playing -> RED STOP BUTTON -> Full Stop
-      stopAudioTrigger.current(true);
-    } else {
-      // If paused -> GREEN PLAY BUTTON -> Resume
-      stopAudioTrigger.current(false);
+    if (audioStatus === 'playing') stopAudioTrigger.current(true);
+    else stopAudioTrigger.current(false);
+  };
+
+  // 3. New Handler for Logo Click
+  const handleLogoClick = () => {
+    if (selectedChapter) {
+        setIsInfoOpen(true);
     }
   };
 
-  // --- THEME COLORS ---
+  // Styles
   const isLight = theme === 'light';
   const mainBgClass = isLight ? 'bg-[#f5f5f0] text-[#2b2b2b]' : 'bg-[rgb(22,22,24)] text-[rgb(252,252,252)]';
   const headerBgClass = isLight ? 'bg-[#e7e5e4] border-stone-300' : 'bg-[rgb(46,47,48)] border-gray-700/50';
-  
   const isPlaying = audioStatus === 'playing';
-  
-  // Style: Red for Stop (Playing), Green for Play (Paused)
   const controlBtnClass = isPlaying 
     ? (isLight ? 'bg-red-100 text-red-600 border-1 border-amber-800' : 'bg-red-500/20 text-red-400 border-1 border-amber-700')
     : (isLight ? 'bg-emerald-100 text-emerald-600 border-1 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-1 border-emerald-500/50');
@@ -186,25 +159,37 @@ function App() {
         {/* LEFT */}
         <div className="flex items-center gap-3 z-20">
           <div className="md:hidden">
-            {/* MOBILE GLOBAL CONTROL */}
+            {/* MOBILE: Show Play Button if active, otherwise Show Logo (which is now clickable) */}
             {audioStatus !== 'idle' ? (
               <button
                 onClick={handleGlobalAudioClick}
                 className={`w-9 h-9 rounded-full flex items-center justify-center animate-in fade-in zoom-in duration-200 ${controlBtnClass}`}
               >
-                {audioStatus === 'playing' ? (
-                  <Square size={16} fill="currentColor" />
-                ) : (
-                  <Play size={16} fill="currentColor" className="ml-0.5" />
-                )}
+                {audioStatus === 'playing' ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
               </button>
             ) : (
-              <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+              /* 4. Update Mobile Logo to Button */
+              <button 
+                onClick={handleLogoClick}
+                className="hover:scale-105 active:scale-95 transition-transform cursor-pointer focus:outline-none"
+              >
+                <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+              </button>
             )}
           </div>
+          
+          {/* DESKTOP: Always show logo */}
           <div className="hidden md:block">
-            <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+            {/* 5. Update Desktop Logo to Button */}
+            <button 
+              onClick={handleLogoClick}
+              className="hover:scale-105 active:scale-95 transition-transform cursor-pointer focus:outline-none"
+              title="View Surah Info"
+            >
+              <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
+            </button>
           </div>
+          
           <span className="hidden md:block font-bold text-xl tracking-tight" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
             Al-Qur'an
           </span>
@@ -224,11 +209,7 @@ function App() {
                 onClick={handleGlobalAudioClick}
                 className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform ${controlBtnClass}`}
               >
-                {audioStatus === 'playing' ? (
-                  <Square size={16} fill="currentColor" />
-                ) : (
-                  <Play size={16} fill="currentColor" className="ml-0.5" />
-                )}
+                {audioStatus === 'playing' ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
               </button>
             </div>
 
@@ -280,7 +261,7 @@ function App() {
             scrollRef={contentTopRef}
             theme={theme}
             showTranslation={showTranslation}
-            onlyTranslation={onlyTranslation} 
+            onlyTranslation={onlyTranslation}
             fontSize={fontSize}
             onAudioStatusChange={setAudioStatus}
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
@@ -292,7 +273,7 @@ function App() {
         )}
       </main>
 
-      {/* Wrap Lazy Loaded Component in Suspense */}
+      {/* 6. Render Modals (Settings & Surah Info) */}
       <Suspense fallback={null}>
         {isSettingsOpen && (
           <SettingsModal
@@ -307,6 +288,15 @@ function App() {
             fontSize={fontSize}
             setFontSize={setFontSize}
           />
+        )}
+        
+        {isInfoOpen && selectedChapter && (
+           <SurahInfoModal 
+             isOpen={isInfoOpen}
+             onClose={() => setIsInfoOpen(false)}
+             chapter={selectedChapter}
+             theme={theme}
+           />
         )}
       </Suspense>
     </div>

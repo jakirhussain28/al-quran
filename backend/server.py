@@ -47,6 +47,12 @@ async def api_root():
 async def get_chapters():
     return await make_request("/chapters")
 
+@app.get("/api/chapters/{chapter_id}/info")
+async def get_chapter_info(chapter_id: int):
+    # Fetch info in English. 
+    # This usually returns the "Tafhim al-Qur'an" intro (Maududi) or similar deep context.
+    return await make_request(f"/chapters/{chapter_id}/info", {"language": "en"})
+
 @app.get("/api/chapters/{chapter_id}/verses")
 async def get_verses(chapter_id: int, page: int = 1):
     params = {
