@@ -47,6 +47,7 @@ function VerseList({
 }) {
   // --- AUDIO STATE MANAGEMENT ---
   const [playingVerseKey, setPlayingVerseKey] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   
   // Refs
@@ -116,14 +117,40 @@ function VerseList({
   // --- AUDIO LOGIC ---
   useEffect(() => {
     if (registerStopHandler) {
-      registerStopHandler(() => {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
+      // Handler accepts forceStop boolean: true = Stop/Reset, false = Toggle/Resume
+      registerStopHandler((forceStop = false) => {
+        
+        if (forceStop) {
+          // --- FORCE STOP (RESET) ---
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+          }
+          setPlayingVerseKey(null);
+          setIsPaused(false);
+          currentAudioKeyRef.current = null;
+          if (onAudioStatusChange) onAudioStatusChange('idle');
+        } else {
+          // --- TOGGLE / RESUME ---
+          if (audioRef.current) {
+            if (audioRef.current.paused) {
+              // RESUME
+              audioRef.current.play();
+              setIsPaused(false);
+              if (onAudioStatusChange) onAudioStatusChange('playing');
+              
+              // NEW: Scroll to verse when resuming from global header
+              if (currentAudioKeyRef.current) {
+                scrollToVerse(currentAudioKeyRef.current);
+              }
+            } else {
+              // PAUSE
+              audioRef.current.pause();
+              setIsPaused(true);
+              if (onAudioStatusChange) onAudioStatusChange('paused');
+            }
+          }
         }
-        setPlayingVerseKey(null);
-        currentAudioKeyRef.current = null;
-        if (onAudioStatusChange) onAudioStatusChange(false);
       });
     }
   }, [registerStopHandler, onAudioStatusChange]);
@@ -131,70 +158,69 @@ function VerseList({
   const handlePlayPause = (verse) => {
     const verseKey = verse.verse_key;
     
+    // Toggle active verse (Pause/Play)
     if (playingVerseKey === verseKey) {
-      audioRef.current?.pause();
-      setPlayingVerseKey(null);
-      if (onAudioStatusChange) onAudioStatusChange(false);
+      if (audioRef.current) {
+        if (audioRef.current.paused) {
+          audioRef.current.play();
+          setIsPaused(false);
+          if (onAudioStatusChange) onAudioStatusChange('playing');
+        } else {
+          audioRef.current.pause();
+          setIsPaused(true);
+          if (onAudioStatusChange) onAudioStatusChange('paused');
+        }
+      }
       return;
     }
 
+    // Start New Audio
     const relativeUrl = verse.audio?.url;
     if (!relativeUrl) return;
     
     const audioUrl = relativeUrl.startsWith('http') ? relativeUrl : `https://verses.quran.com/${relativeUrl}`;
 
     setAudioLoading(true);
-    
-    const isResuming = currentAudioKeyRef.current === verseKey && audioRef.current;
 
-    if (isResuming) {
-        audioRef.current.play()
-            .then(() => {
-                setAudioLoading(false);
-                setPlayingVerseKey(verseKey);
-                if (onAudioStatusChange) onAudioStatusChange(true);
-            })
-            .catch(err => {
-                console.error(err);
-                setAudioLoading(false);
-            });
-    } else {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-
-        const newAudio = new Audio(audioUrl);
-        audioRef.current = newAudio;
-        currentAudioKeyRef.current = verseKey;
-
-        newAudio.play()
-            .then(() => {
-                setAudioLoading(false);
-                setPlayingVerseKey(verseKey);
-                if (onAudioStatusChange) onAudioStatusChange(true);
-            })
-            .catch(err => {
-                console.error("Audio error:", err);
-                setAudioLoading(false);
-                setPlayingVerseKey(null);
-                if (onAudioStatusChange) onAudioStatusChange(false);
-            });
-
-        newAudio.onended = () => {
-            const currentList = versesRef.current;
-            const currentIndex = currentList.findIndex((v) => v.verse_key === verse.verse_key);
-            
-            if (currentIndex !== -1 && currentIndex < currentList.length - 1) {
-                const nextVerse = currentList[currentIndex + 1];
-                handlePlayPause(nextVerse); 
-            } else {
-                setPlayingVerseKey(null);
-                currentAudioKeyRef.current = null; 
-                if (onAudioStatusChange) onAudioStatusChange(false);
-            }
-        };
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
     }
+
+    const newAudio = new Audio(audioUrl);
+    audioRef.current = newAudio;
+    currentAudioKeyRef.current = verseKey;
+
+    newAudio.play()
+        .then(() => {
+            setAudioLoading(false);
+            setPlayingVerseKey(verseKey);
+            setIsPaused(false);
+            if (onAudioStatusChange) onAudioStatusChange('playing');
+        })
+        .catch(err => {
+            console.error("Audio error:", err);
+            setAudioLoading(false);
+            setPlayingVerseKey(null);
+            setIsPaused(false);
+            if (onAudioStatusChange) onAudioStatusChange('idle');
+        });
+
+    newAudio.onended = () => {
+        const currentList = versesRef.current;
+        const currentIndex = currentList.findIndex((v) => v.verse_key === verse.verse_key);
+        
+        if (currentIndex !== -1 && currentIndex < currentList.length - 1) {
+            const nextVerse = currentList[currentIndex + 1];
+            handlePlayPause(nextVerse); 
+        } else {
+            setPlayingVerseKey(null);
+            currentAudioKeyRef.current = null; 
+            setIsPaused(false);
+            if (onAudioStatusChange) onAudioStatusChange('idle');
+        }
+    };
+    
     scrollToVerse(verseKey);
   };
 
@@ -263,7 +289,6 @@ function VerseList({
 
         <div className="space-y-4 mb-4">
           
-          {/* OPTIMIZATION: Show Skeletons if loading and no verses (Initial Load) */}
           {loading && verses.length === 0 && (
             <>
               <VerseSkeleton isLight={isLight} />
@@ -274,8 +299,9 @@ function VerseList({
           )}
 
           {verses.map((verse) => {
-            const isPlaying = playingVerseKey === verse.verse_key;
-            const activeStyles = isPlaying
+            const isPlayingVerse = playingVerseKey === verse.verse_key;
+            
+            const activeStyles = isPlayingVerse
               ? isLight
                 ? 'ring-1 ring-emerald-500 bg-emerald-50/40'
                 : 'ring-1 ring-emerald-500/80 bg-emerald-900/10'
@@ -308,14 +334,13 @@ function VerseList({
                       audioUrl={verse.audio?.url} 
                       verseKey={verse.verse_key}
                       theme={theme}
-                      isPlaying={isPlaying}
-                      isLoading={isPlaying && audioLoading}
+                      isPlaying={isPlayingVerse && !isPaused}
+                      isLoading={isPlayingVerse && audioLoading}
                       onToggle={() => handlePlayPause(verse)}
                   />
                 </div>
 
                 <div className="flex-1 p-5 md:p-8 pt-2 md:pt-8">
-                  {/* --- CONDITIONAL ARABIC RENDERING --- */}
                   {!onlyTranslation && (
                     <p 
                       className={`text-right font-arabic mb-6 transition-all duration-200 ${arabicSizeMap[fontSize]}`} 
@@ -338,7 +363,6 @@ function VerseList({
                     </p>
                   )}
 
-                  {/* --- LOGIC: Show Translation if "Sahih" is ON *OR* "Only Translation" is ON --- */}
                   {(showTranslation || onlyTranslation) && (
                     <p 
                       className={`leading-relaxed transition-all duration-200 opacity-90 ${translationSizeMap[fontSize]} ${isLight ? 'text-stone-600' : 'text-gray-400'}`}
@@ -354,7 +378,6 @@ function VerseList({
           })}
         </div>
 
-        {/* Dynamic height. Collapses to h-6 when not loading, effectively removing the gap */}
         <div 
           ref={loadMoreRef} 
           className={`flex items-center justify-center w-full transition-all duration-300 ${loading ? 'h-24 py-4' : 'h-6'}`}

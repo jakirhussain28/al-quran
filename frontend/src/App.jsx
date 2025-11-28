@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { Settings, Square } from 'lucide-react';
+import { Settings, Square, Play } from 'lucide-react'; 
 import logoquran from '/src/assets/logo-quran.svg';
 import VerseList from './Components/VerseList';
 import DynamicBar from './Components/DynamicBar';
@@ -14,7 +14,6 @@ function App() {
   const [chapters, setChapters] = useState([]);
   
   // OPTIMIZATION: Initialize immediately from localStorage
-  // This allows the App to render the Chapter Title BEFORE the API returns
   const [selectedChapter, setSelectedChapter] = useState(() => {
     try {
       const saved = localStorage.getItem('app-lastChapter');
@@ -37,7 +36,8 @@ function App() {
   const [loadingVerses, setLoadingVerses] = useState(false);
 
   // --- AUDIO STATE ---
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  // 'idle' | 'playing' | 'paused'
+  const [audioStatus, setAudioStatus] = useState('idle'); 
   const stopAudioTrigger = useRef(() => { });
 
   // --- SETTINGS STATES ---
@@ -135,13 +135,13 @@ function App() {
     if (chapterObj) {
       if (selectedChapter && selectedChapter.id === chapterObj.id) return;
       
-      stopAudioTrigger.current();
+      // Stop audio completely when changing chapters
+      stopAudioTrigger.current(true); // true = force stop
       setVerses([]);
       setPage(1);
       setSelectedChapter(chapterObj);
       setTargetVerse(null);
 
-      // Save to localStorage so it opens next time
       localStorage.setItem('app-lastChapter', JSON.stringify(chapterObj));
     }
   };
@@ -154,11 +154,28 @@ function App() {
     }
   };
 
+  // --- GLOBAL AUDIO CONTROL ---
+  const handleGlobalAudioClick = () => {
+    if (audioStatus === 'playing') {
+      // If playing -> RED STOP BUTTON -> Full Stop
+      stopAudioTrigger.current(true);
+    } else {
+      // If paused -> GREEN PLAY BUTTON -> Resume
+      stopAudioTrigger.current(false);
+    }
+  };
+
   // --- THEME COLORS ---
   const isLight = theme === 'light';
   const mainBgClass = isLight ? 'bg-[#f5f5f0] text-[#2b2b2b]' : 'bg-[rgb(22,22,24)] text-[rgb(252,252,252)]';
   const headerBgClass = isLight ? 'bg-[#e7e5e4] border-stone-300' : 'bg-[rgb(46,47,48)] border-gray-700/50';
-  const stopBtnClass = isLight ? 'bg-red-100 text-red-600 border-1 border-amber-800' : 'bg-red-500/20 text-red-400 border-1 border-amber-700';
+  
+  const isPlaying = audioStatus === 'playing';
+  
+  // Style: Red for Stop (Playing), Green for Play (Paused)
+  const controlBtnClass = isPlaying 
+    ? (isLight ? 'bg-red-100 text-red-600 border-1 border-amber-800' : 'bg-red-500/20 text-red-400 border-1 border-amber-700')
+    : (isLight ? 'bg-emerald-100 text-emerald-600 border-1 border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border-1 border-emerald-500/50');
 
   return (
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${mainBgClass}`}>
@@ -169,12 +186,17 @@ function App() {
         {/* LEFT */}
         <div className="flex items-center gap-3 z-20">
           <div className="md:hidden">
-            {isAudioPlaying ? (
+            {/* MOBILE GLOBAL CONTROL */}
+            {audioStatus !== 'idle' ? (
               <button
-                onClick={() => stopAudioTrigger.current()}
-                className={`w-9 h-9 rounded-full flex items-center justify-center animate-in fade-in zoom-in duration-200 ${stopBtnClass}`}
+                onClick={handleGlobalAudioClick}
+                className={`w-9 h-9 rounded-full flex items-center justify-center animate-in fade-in zoom-in duration-200 ${controlBtnClass}`}
               >
-                <Square size={16} fill="currentColor" />
+                {audioStatus === 'playing' ? (
+                  <Square size={16} fill="currentColor" />
+                ) : (
+                  <Play size={16} fill="currentColor" className="ml-0.5" />
+                )}
               </button>
             ) : (
               <img src={logoquran} alt="Al-Qur'an" className="w-9 h-9" />
@@ -191,23 +213,26 @@ function App() {
         {/* CENTER: Dynamic Bar */}
         <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
           <div className="pointer-events-auto flex items-start gap-1">
+             {/* DESKTOP GLOBAL CONTROL */}
              <div className={`
                hidden md:flex items-center justify-center mr-0
                transition-all duration-300 ease-out transform
-               ${isAudioPlaying ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-4 scale-75 pointer-events-none'}
+               ${audioStatus !== 'idle' ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-4 scale-75 pointer-events-none'}
                mt-1 
             `}>
               <button
-                onClick={() => stopAudioTrigger.current()}
-                className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform ${stopBtnClass}`}
+                onClick={handleGlobalAudioClick}
+                className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform ${controlBtnClass}`}
               >
-                <Square size={16} fill="currentColor" />
+                {audioStatus === 'playing' ? (
+                  <Square size={16} fill="currentColor" />
+                ) : (
+                  <Play size={16} fill="currentColor" className="ml-0.5" />
+                )}
               </button>
             </div>
 
             <div>
-              {/* If we have a selectedChapter (from local storage), we show DynamicBar IMMEDIATELY. 
-                  We don't wait for loadingChapters to finish. This feels much faster. */}
               {loadingChapters && !selectedChapter ? (
                 <div className="h-11 w-[300px] md:w-[500px] bg-[#1a1b1d] border border-white/5 rounded-2xl animate-pulse flex items-center justify-center">
                   <div className="h-2 w-24 bg-gray-700 rounded-full opacity-50"></div>
@@ -257,7 +282,7 @@ function App() {
             showTranslation={showTranslation}
             onlyTranslation={onlyTranslation} 
             fontSize={fontSize}
-            onAudioStatusChange={setIsAudioPlaying}
+            onAudioStatusChange={setAudioStatus}
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
             selectedChapter={selectedChapter}
             onChapterNavigate={handleChapterSelect}
