@@ -57,6 +57,7 @@ function VerseList({
   const loadMoreRef = useRef(null);
   const versesRef = useRef(verses);
 
+  // Keep versesRef in sync for the audio 'onended' callback
   useEffect(() => {
     versesRef.current = verses;
   }, [verses]);
@@ -81,12 +82,14 @@ function VerseList({
   useEffect(() => {
     if (targetVerse && selectedChapter) {
         const verseKey = `${selectedChapter.id}:${targetVerse.id}`;
-        const verseExists = verses.find(v => v.verse_key === verseKey);
-
-        if (verseExists) {
-            scrollToVerse(verseKey);
-            setTargetVerse(null); 
-        }
+        // Slight delay to ensure DOM is ready if verses just loaded
+        setTimeout(() => {
+           const verseExists = verses.find(v => v.verse_key === verseKey);
+           if (verseExists) {
+               scrollToVerse(verseKey);
+               setTargetVerse(null); 
+           }
+        }, 300);
     }
   }, [targetVerse, verses, selectedChapter, setTargetVerse]);
 
@@ -114,37 +117,113 @@ function VerseList({
     }
   }, [handleObserver]);
 
-  // --- AUDIO LOGIC ---
+  // --- OPTIMIZED AUDIO LOGIC ---
+  
+  // 1. Core Stop Function
+  const stopAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      // Important: clear src to stop buffering
+      audioRef.current.src = ""; 
+    }
+    setPlayingVerseKey(null);
+    setIsPaused(false);
+    setAudioLoading(false);
+    currentAudioKeyRef.current = null;
+    if (onAudioStatusChange) onAudioStatusChange('idle');
+  }, [onAudioStatusChange]);
+
+  // 2. Core Play Function (Separated from Toggle logic)
+  const playVerseAudio = useCallback((verse) => {
+    const verseKey = verse.verse_key;
+    const relativeUrl = verse.audio?.url;
+    if (!relativeUrl) return;
+    
+    const audioUrl = relativeUrl.startsWith('http') ? relativeUrl : `https://verses.quran.com/${relativeUrl}`;
+
+    // Stop previous instance cleanly
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+    }
+
+    setAudioLoading(true);
+    // Optimistic UI update
+    setPlayingVerseKey(verseKey);
+    currentAudioKeyRef.current = verseKey;
+    if (onAudioStatusChange) onAudioStatusChange('playing');
+
+    const newAudio = new Audio(audioUrl);
+    newAudio.preload = "auto"; // Fix: Improve buffering
+    audioRef.current = newAudio;
+
+    // --- Event: Ended (Auto-Advance) ---
+    newAudio.onended = () => {
+        const currentList = versesRef.current;
+        const currentIndex = currentList.findIndex((v) => v.verse_key === verseKey);
+        
+        if (currentIndex !== -1 && currentIndex < currentList.length - 1) {
+            const nextVerse = currentList[currentIndex + 1];
+            // Recursively play next (Force play, do not toggle)
+            playVerseAudio(nextVerse); 
+        } else {
+            stopAudio();
+        }
+    };
+
+    // --- Event: Error (Stuck Fix) ---
+    newAudio.onerror = (e) => {
+        console.error("Audio Load Error", e);
+        // If error occurs, stop UI from showing "Loading" forever
+        setAudioLoading(false);
+        setIsPaused(true); 
+    };
+
+    // --- Execute Play ---
+    const playPromise = newAudio.play();
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => {
+                setAudioLoading(false);
+                setIsPaused(false);
+                scrollToVerse(verseKey);
+            })
+            .catch(err => {
+                // DOMException: The play() request was interrupted
+                if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+                   // User likely clicked pause or switched quickly. 
+                   // We ignore this to prevent UI glitching.
+                } else {
+                   console.error("Playback error:", err);
+                   setAudioLoading(false);
+                   setIsPaused(true); // Revert to paused state in UI
+                }
+            });
+    }
+
+  }, [stopAudio, onAudioStatusChange]);
+
+
+  // 3. Register Global Handler (Footer/Header controls)
   useEffect(() => {
     if (registerStopHandler) {
-      // Handler accepts forceStop boolean: true = Stop/Reset, false = Toggle/Resume
       registerStopHandler((forceStop = false) => {
-        
         if (forceStop) {
-          // --- FORCE STOP (RESET) ---
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-          }
-          setPlayingVerseKey(null);
-          setIsPaused(false);
-          currentAudioKeyRef.current = null;
-          if (onAudioStatusChange) onAudioStatusChange('idle');
+          stopAudio();
         } else {
-          // --- TOGGLE / RESUME ---
+          // Toggle Resume/Pause
           if (audioRef.current) {
             if (audioRef.current.paused) {
-              // RESUME
-              audioRef.current.play();
-              setIsPaused(false);
-              if (onAudioStatusChange) onAudioStatusChange('playing');
-              
-              // NEW: Scroll to verse when resuming from global header
-              if (currentAudioKeyRef.current) {
-                scrollToVerse(currentAudioKeyRef.current);
+              const playPromise = audioRef.current.play();
+              if (playPromise !== undefined) {
+                 playPromise.then(() => {
+                    setIsPaused(false);
+                    if (onAudioStatusChange) onAudioStatusChange('playing');
+                    if (currentAudioKeyRef.current) scrollToVerse(currentAudioKeyRef.current);
+                 }).catch(e => console.log("Resume interrupted", e));
               }
             } else {
-              // PAUSE
               audioRef.current.pause();
               setIsPaused(true);
               if (onAudioStatusChange) onAudioStatusChange('paused');
@@ -153,16 +232,17 @@ function VerseList({
         }
       });
     }
-  }, [registerStopHandler, onAudioStatusChange]);
+  }, [registerStopHandler, onAudioStatusChange, stopAudio]);
 
-  const handlePlayPause = (verse) => {
+  // 4. User Interaction Handler
+  const handlePlayPauseClick = (verse) => {
     const verseKey = verse.verse_key;
     
-    // Toggle active verse (Pause/Play)
+    // CASE A: Clicked the currently playing verse -> Toggle Pause/Play
     if (playingVerseKey === verseKey) {
       if (audioRef.current) {
         if (audioRef.current.paused) {
-          audioRef.current.play();
+          audioRef.current.play().catch(e => console.error(e));
           setIsPaused(false);
           if (onAudioStatusChange) onAudioStatusChange('playing');
         } else {
@@ -174,59 +254,17 @@ function VerseList({
       return;
     }
 
-    // Start New Audio
-    const relativeUrl = verse.audio?.url;
-    if (!relativeUrl) return;
-    
-    const audioUrl = relativeUrl.startsWith('http') ? relativeUrl : `https://verses.quran.com/${relativeUrl}`;
-
-    setAudioLoading(true);
-
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-    }
-
-    const newAudio = new Audio(audioUrl);
-    audioRef.current = newAudio;
-    currentAudioKeyRef.current = verseKey;
-
-    newAudio.play()
-        .then(() => {
-            setAudioLoading(false);
-            setPlayingVerseKey(verseKey);
-            setIsPaused(false);
-            if (onAudioStatusChange) onAudioStatusChange('playing');
-        })
-        .catch(err => {
-            console.error("Audio error:", err);
-            setAudioLoading(false);
-            setPlayingVerseKey(null);
-            setIsPaused(false);
-            if (onAudioStatusChange) onAudioStatusChange('idle');
-        });
-
-    newAudio.onended = () => {
-        const currentList = versesRef.current;
-        const currentIndex = currentList.findIndex((v) => v.verse_key === verse.verse_key);
-        
-        if (currentIndex !== -1 && currentIndex < currentList.length - 1) {
-            const nextVerse = currentList[currentIndex + 1];
-            handlePlayPause(nextVerse); 
-        } else {
-            setPlayingVerseKey(null);
-            currentAudioKeyRef.current = null; 
-            setIsPaused(false);
-            if (onAudioStatusChange) onAudioStatusChange('idle');
-        }
-    };
-    
-    scrollToVerse(verseKey);
+    // CASE B: Clicked a different verse -> Start new Playback
+    playVerseAudio(verse);
   };
 
+  // Cleanup on Unmount
   useEffect(() => {
     return () => {
-      if (audioRef.current) audioRef.current.pause();
+      if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = "";
+      }
     };
   }, []);
 
@@ -336,7 +374,7 @@ function VerseList({
                       theme={theme}
                       isPlaying={isPlayingVerse && !isPaused}
                       isLoading={isPlayingVerse && audioLoading}
-                      onToggle={() => handlePlayPause(verse)}
+                      onToggle={() => handlePlayPauseClick(verse)}
                   />
                 </div>
 
