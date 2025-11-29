@@ -15,7 +15,8 @@ origins = [
     "https://alquran-furqan.vercel.app",
     "https://alquran-foundation.vercel.app",
     "https://quran-furqan.vercel.app",
-    "http://localhost:5000"
+    "http://localhost:5001",
+    "http://192.168.1.4:5001"
 ]
 
 app.add_middleware(
