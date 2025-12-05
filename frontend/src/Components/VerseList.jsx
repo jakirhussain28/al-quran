@@ -42,6 +42,9 @@ function VerseList({
   registerStopHandler,
   selectedChapter,
   onChapterNavigate,
+  onChapterEnd,      // NEW: Callback when chapter finishes
+  shouldAutoPlay,    // NEW: Flag to auto-start audio
+  setShouldAutoPlay, // NEW: Setter to consume flag
   targetVerse, 
   setTargetVerse 
 }) {
@@ -114,14 +117,19 @@ function VerseList({
     }
   }, [handleObserver]);
 
-  // --- AUDIO LOGIC ---
+  // --- AUTO PLAY TRIGGER ---
+  useEffect(() => {
+    if (shouldAutoPlay && verses.length > 0 && !loading && !playingVerseKey) {
+        handlePlayPause(verses[0]);
+        if (setShouldAutoPlay) setShouldAutoPlay(false);
+    }
+  }, [verses, loading, shouldAutoPlay, playingVerseKey]);
+
+  // --- GLOBAL AUDIO STOP HANDLER ---
   useEffect(() => {
     if (registerStopHandler) {
-      // Handler accepts forceStop boolean: true = Stop/Reset, false = Toggle/Resume
       registerStopHandler((forceStop = false) => {
-        
         if (forceStop) {
-          // --- FORCE STOP (RESET) ---
           if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -130,21 +138,20 @@ function VerseList({
           setIsPaused(false);
           currentAudioKeyRef.current = null;
           if (onAudioStatusChange) onAudioStatusChange('idle');
+          
+          // Clear Media Session
+          if ('mediaSession' in navigator) {
+             navigator.mediaSession.playbackState = "none";
+          }
         } else {
-          // --- TOGGLE / RESUME ---
+          // Toggle
           if (audioRef.current) {
             if (audioRef.current.paused) {
-              // RESUME
               audioRef.current.play();
               setIsPaused(false);
               if (onAudioStatusChange) onAudioStatusChange('playing');
-              
-              // NEW: Scroll to verse when resuming from global header
-              if (currentAudioKeyRef.current) {
-                scrollToVerse(currentAudioKeyRef.current);
-              }
+              if (currentAudioKeyRef.current) scrollToVerse(currentAudioKeyRef.current);
             } else {
-              // PAUSE
               audioRef.current.pause();
               setIsPaused(true);
               if (onAudioStatusChange) onAudioStatusChange('paused');
@@ -155,6 +162,63 @@ function VerseList({
     }
   }, [registerStopHandler, onAudioStatusChange]);
 
+  // --- MEDIA SESSION API (LOCK SCREEN CONTROLS) ---
+  useEffect(() => {
+    if (!playingVerseKey || !selectedChapter || !audioRef.current) return;
+
+    if ('mediaSession' in navigator) {
+      // 1. Set Metadata (Title, Artist, Artwork)
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `Verse ${playingVerseKey.split(':')[1]}`,
+        artist: `Surah ${selectedChapter.name_simple}`,
+        album: 'Al-Quran',
+        artwork: [
+          { src: logoquran, sizes: '512x512', type: 'image/svg+xml' },
+          { src: logoquran, sizes: '96x96', type: 'image/svg+xml' }
+        ]
+      });
+
+      // 2. Set Action Handlers
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (audioRef.current) {
+            audioRef.current.play();
+            setIsPaused(false);
+            if (onAudioStatusChange) onAudioStatusChange('playing');
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            setIsPaused(true);
+            if (onAudioStatusChange) onAudioStatusChange('paused');
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        const currentIndex = versesRef.current.findIndex(v => v.verse_key === playingVerseKey);
+        if (currentIndex > 0) {
+           const prevVerse = versesRef.current[currentIndex - 1];
+           handlePlayPause(prevVerse);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        const currentIndex = versesRef.current.findIndex(v => v.verse_key === playingVerseKey);
+        // If next verse is available in the loaded list
+        if (currentIndex !== -1 && currentIndex < versesRef.current.length - 1) {
+           const nextVerse = versesRef.current[currentIndex + 1];
+           handlePlayPause(nextVerse);
+        } else if (onChapterEnd && selectedChapter.verses_count === versesRef.current.length) {
+            // End of chapter
+            onChapterEnd();
+        }
+      });
+    }
+  }, [playingVerseKey, selectedChapter, verses]); // Re-run when verse or list changes
+
+
+  // --- PLAY/PAUSE LOGIC ---
   const handlePlayPause = (verse) => {
     const verseKey = verse.verse_key;
     
@@ -197,6 +261,11 @@ function VerseList({
             setPlayingVerseKey(verseKey);
             setIsPaused(false);
             if (onAudioStatusChange) onAudioStatusChange('playing');
+            
+            // Update Playback State for Media Session
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = "playing";
+            }
         })
         .catch(err => {
             console.error("Audio error:", err);
@@ -210,14 +279,25 @@ function VerseList({
         const currentList = versesRef.current;
         const currentIndex = currentList.findIndex((v) => v.verse_key === verse.verse_key);
         
+        // 1. Try to play next verse in the loaded list
         if (currentIndex !== -1 && currentIndex < currentList.length - 1) {
             const nextVerse = currentList[currentIndex + 1];
             handlePlayPause(nextVerse); 
-        } else {
-            setPlayingVerseKey(null);
-            currentAudioKeyRef.current = null; 
-            setIsPaused(false);
-            if (onAudioStatusChange) onAudioStatusChange('idle');
+        } 
+        // 2. End of loaded list -> Check if End of Chapter
+        else {
+            const isEndOfChapter = selectedChapter && (selectedChapter.verses_count === currentList.length);
+
+            if (isEndOfChapter && onChapterEnd) {
+                setPlayingVerseKey(null);
+                currentAudioKeyRef.current = null;
+                onChapterEnd(); 
+            } else {
+                setPlayingVerseKey(null);
+                currentAudioKeyRef.current = null; 
+                setIsPaused(false);
+                if (onAudioStatusChange) onAudioStatusChange('idle');
+            }
         }
     };
     

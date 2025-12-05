@@ -6,7 +6,6 @@ import DynamicBar from './Components/DynamicBar';
 
 // --- LAZY LOADING MODALS ---
 const SettingsModal = lazy(() => import('./Components/SettingsModal'));
-// 1. Import the new modal
 const SurahInfoModal = lazy(() => import('./Components/SurahInfoModal')); 
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -33,9 +32,11 @@ function App() {
   const [audioStatus, setAudioStatus] = useState('idle'); 
   const stopAudioTrigger = useRef(() => { });
 
+  // --- NEW: Auto Play State ---
+  const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
+
   // --- SETTINGS & INFO STATES ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // 2. Add state for Info Modal
   const [isInfoOpen, setIsInfoOpen] = useState(false); 
 
   const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'light');
@@ -52,10 +53,7 @@ function App() {
     return saved ? parseInt(saved, 10) : 3;
   });
 
-  // ... (Existing Effects and API calls remain exactly the same)
-  // ... (Keep Persist Effects, Fetch Chapters, Fetch Verses, Handle Chapter Select, Handle Verse Jump, Handle Global Audio)
-
-  // ... (useEffect for persistence) ...
+  // ... (Persist Effects) ...
   useEffect(() => { localStorage.setItem('app-theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('app-showTranslation', showTranslation); }, [showTranslation]);
   useEffect(() => { localStorage.setItem('app-onlyTranslation', onlyTranslation); }, [onlyTranslation]);
@@ -63,7 +61,7 @@ function App() {
 
   const contentTopRef = useRef(null);
 
-  // ... (API Calls for Chapters and Verses - NO CHANGES) ...
+  // ... (API Calls) ...
   useEffect(() => {
     setLoadingChapters(true);
     fetch(`${API_URL}/api/chapters`)
@@ -108,19 +106,37 @@ function App() {
     return () => controller.abort();
   }, [selectedChapter, page]);
 
-  // ... (Handlers - NO CHANGES) ...
+  // --- Handlers ---
+
   const handleChapterSelect = (chapter) => {
     let chapterObj = chapter;
     if (typeof chapter === 'number') chapterObj = chapters.find(c => c.id === chapter);
     if (chapterObj) {
+      // Force reset audio state cleanly
+      stopAudioTrigger.current(true); 
+
       if (selectedChapter && selectedChapter.id === chapterObj.id) return;
-      stopAudioTrigger.current(true);
+      
       setVerses([]);
       setPage(1);
       setSelectedChapter(chapterObj);
       setTargetVerse(null);
       localStorage.setItem('app-lastChapter', JSON.stringify(chapterObj));
     }
+  };
+
+  // --- NEW: Handle Auto Next Chapter ---
+  const handleChapterEnd = () => {
+    if (!selectedChapter) return;
+
+    // Logic: 1 -> 2 ... -> 114 -> 1 (Loop back to start)
+    const nextId = selectedChapter.id === 114 ? 1 : selectedChapter.id + 1;
+    
+    // Trigger selection
+    handleChapterSelect(nextId);
+    
+    // Set flag so VerseList knows to start playing immediately upon load
+    setShouldAutoPlay(true);
   };
 
   const handleVerseJump = (verseNumber) => {
@@ -134,7 +150,6 @@ function App() {
     else stopAudioTrigger.current(false);
   };
 
-  // 3. New Handler for Logo Click
   const handleLogoClick = () => {
     if (selectedChapter) {
         setIsInfoOpen(true);
@@ -159,7 +174,6 @@ function App() {
         {/* LEFT */}
         <div className="flex items-center gap-3 z-20">
           <div className="md:hidden">
-            {/* MOBILE: Show Play Button if active, otherwise Show Logo (which is now clickable) */}
             {audioStatus !== 'idle' ? (
               <button
                 onClick={handleGlobalAudioClick}
@@ -168,7 +182,6 @@ function App() {
                 {audioStatus === 'playing' ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
               </button>
             ) : (
-              /* 4. Update Mobile Logo to Button */
               <button 
                 onClick={handleLogoClick}
                 className="hover:scale-105 active:scale-95 transition-transform cursor-pointer focus:outline-none"
@@ -178,9 +191,7 @@ function App() {
             )}
           </div>
           
-          {/* DESKTOP: Always show logo */}
           <div className="hidden md:block">
-            {/* 5. Update Desktop Logo to Button */}
             <button 
               onClick={handleLogoClick}
               className="hover:scale-105 active:scale-95 transition-transform cursor-pointer focus:outline-none"
@@ -198,7 +209,6 @@ function App() {
         {/* CENTER: Dynamic Bar */}
         <div className="absolute top-0 left-0 right-0 flex justify-center z-30 pt-2.5 pointer-events-none">
           <div className="pointer-events-auto flex items-start gap-1">
-             {/* DESKTOP GLOBAL CONTROL */}
              <div className={`
                hidden md:flex items-center justify-center mr-0
                transition-all duration-300 ease-out transform
@@ -267,13 +277,18 @@ function App() {
             registerStopHandler={(handler) => stopAudioTrigger.current = handler}
             selectedChapter={selectedChapter}
             onChapterNavigate={handleChapterSelect}
+            
+            // NEW PROPS FOR AUTO PLAY
+            onChapterEnd={handleChapterEnd}
+            shouldAutoPlay={shouldAutoPlay}
+            setShouldAutoPlay={setShouldAutoPlay}
+
             targetVerse={targetVerse}
             setTargetVerse={setTargetVerse}
           />
         )}
       </main>
 
-      {/* 6. Render Modals (Settings & Surah Info) */}
       <Suspense fallback={null}>
         {isSettingsOpen && (
           <SettingsModal
